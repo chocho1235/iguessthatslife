@@ -1,0 +1,27 @@
+name: LifeSim
+options:
+  bundleIdPrefix: com.henrybarcroft
+  deploymentTarget:
+    iOS: "17.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+targets:
+  LifeSim:
+    type: application
+    platform: iOS
+    info:
+      path: LifeSim/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.henrybarcroft.lifesim
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETSCATALOG_COMPILER_APPICON_NAME: AppIcon
+    sources:
+      - path: LifeSim/Sources
