@@ -6,6 +6,7 @@ struct JobApplicationCutsceneView: View {
     let applicantSeed: String
     let applicantGender: Gender
     let applicantStage: LifeStage
+    var applicantCountry: String? = nil
     var applicantScars: Int = 0
     @Environment(\.dismiss) private var dismiss
 
@@ -127,7 +128,7 @@ struct JobApplicationCutsceneView: View {
                 }
                 .position(x: geo.size.width * 0.68, y: geo.size.height - 110)
 
-                AvatarView(seed: applicantSeed, gender: applicantGender, stage: applicantStage, scars: applicantScars)
+                AvatarView(seed: applicantSeed, gender: applicantGender, stage: applicantStage, country: applicantCountry, scars: applicantScars)
                     .frame(width: 80, height: 80)
                     .background(Color.white)
                     .clipShape(Circle())

@@ -25,8 +25,11 @@ struct Condition {
     /// Vision conditions aren't cured at the doctor — they're corrected by
     /// wearing glasses, and stay in the character's condition list forever.
     let requiresGlasses: Bool
+    /// Catastrophic injuries (stabbings, gunshots) cost far more than a
+    /// standard surgery — this overrides `severity.requiredService.cost`.
+    let customTreatmentCost: Int?
 
-    init(id: String, name: String, severity: ConditionSeverity, stages: Set<LifeStage>, healthDrain: Int, happinessDrain: Int, naturalRecoveryChance: Double, requiresGlasses: Bool = false) {
+    init(id: String, name: String, severity: ConditionSeverity, stages: Set<LifeStage>, healthDrain: Int, happinessDrain: Int, naturalRecoveryChance: Double, requiresGlasses: Bool = false, customTreatmentCost: Int? = nil) {
         self.id = id
         self.name = name
         self.severity = severity
@@ -35,7 +38,10 @@ struct Condition {
         self.happinessDrain = happinessDrain
         self.naturalRecoveryChance = naturalRecoveryChance
         self.requiresGlasses = requiresGlasses
+        self.customTreatmentCost = customTreatmentCost
     }
+
+    var treatmentCost: Int { customTreatmentCost ?? severity.requiredService.cost }
 }
 
 struct ActiveCondition: Identifiable {
@@ -79,6 +85,10 @@ enum ConditionData {
         Condition(id: "heart_disease", name: "Heart Disease", severity: .severe, stages: [.senior], healthDrain: 8, happinessDrain: 3, naturalRecoveryChance: 0.02),
         Condition(id: "cancer", name: "Cancer", severity: .severe, stages: [.adult, .senior], healthDrain: 9, happinessDrain: 5, naturalRecoveryChance: 0.02),
         Condition(id: "appendicitis", name: "Appendicitis", severity: .severe, stages: [.child, .teen, .adult], healthDrain: 8, happinessDrain: 4, naturalRecoveryChance: 0.0),
+
+        // Violent injuries — expensive emergency surgery, not a routine visit
+        Condition(id: "stab_wound", name: "Stab Wound", severity: .severe, stages: [.teen, .adult, .senior], healthDrain: 10, happinessDrain: 6, naturalRecoveryChance: 0.0, customTreatmentCost: 32_000),
+        Condition(id: "gunshot_wound", name: "Gunshot Wound", severity: .severe, stages: [.teen, .adult, .senior], healthDrain: 14, happinessDrain: 8, naturalRecoveryChance: 0.0, customTreatmentCost: 48_000),
 
         // Mysteries — hidden even in name until diagnosed at a checkup
         Condition(id: "mystery_rash", name: "Unexplained Rash", severity: .mild, stages: [.child, .teen, .adult, .senior], healthDrain: 2, happinessDrain: 2, naturalRecoveryChance: 0.3),

@@ -4,6 +4,8 @@ enum AccessorySlot: String, CaseIterable, Hashable {
     case head = "Head"
     case face = "Face"
     case neck = "Neck"
+    case ears = "Ears"
+    case wrist = "Wrist"
 }
 
 struct Accessory: Identifiable, Hashable {

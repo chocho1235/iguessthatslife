@@ -16,7 +16,7 @@ struct DoctorView: View {
     }
 
     private var totalTreatmentCost: Int {
-        treatableDiagnosedConditions.reduce(0) { $0 + (ConditionData.byID[$1.conditionID]?.severity.requiredService.cost ?? 0) }
+        treatableDiagnosedConditions.reduce(0) { $0 + (ConditionData.byID[$1.conditionID]?.treatmentCost ?? 0) }
     }
 
     var body: some View {
@@ -88,6 +88,7 @@ struct DoctorView: View {
                     patientSeed: character.fullName,
                     patientGender: character.gender,
                     patientStage: character.stage,
+                    patientCountry: character.country,
                     patientScars: character.scars
                 )
             }
@@ -122,7 +123,7 @@ struct DoctorView: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("\(condition.severity.rawValue) · treat with \(condition.severity.requiredService.rawValue) ($\(condition.severity.requiredService.cost))")
+                        Text("\(condition.severity.rawValue) · treat with \(condition.severity.requiredService.rawValue) ($\(condition.treatmentCost))")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -140,7 +141,7 @@ struct DoctorView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
-                .disabled(character.cash < condition.severity.requiredService.cost)
+                .disabled(character.cash < condition.treatmentCost)
             }
         }
         .padding(.vertical, 4)

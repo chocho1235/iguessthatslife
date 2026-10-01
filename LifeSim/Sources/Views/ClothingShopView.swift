@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ShopView: View {
+struct ClothingShopView: View {
     @ObservedObject var viewModel: GameViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -9,15 +9,18 @@ struct ShopView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(AccessorySlot.allCases, id: \.self) { slot in
-                    Section(slot.rawValue) {
-                        ForEach(AccessoryData.items(for: slot)) { item in
-                            row(for: item)
+                ForEach(OutfitStyle.allCases, id: \.self) { style in
+                    let items = OutfitData.items(for: style)
+                    if !items.isEmpty {
+                        Section(style.rawValue) {
+                            ForEach(items) { item in
+                                row(for: item)
+                            }
                         }
                     }
                 }
             }
-            .navigationTitle("Accessories")
+            .navigationTitle("Clothing")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -32,12 +35,12 @@ struct ShopView: View {
     }
 
     @ViewBuilder
-    private func row(for item: Accessory) -> some View {
-        let owned = character.ownedAccessoryIDs.contains(item.id)
-        let equipped = character.equippedAccessoryIDs[item.slot] == item.id
+    private func row(for item: Outfit) -> some View {
+        let owned = character.ownedOutfitIDs.contains(item.id)
+        let equipped = character.equippedOutfitID == item.id
 
         HStack(spacing: 14) {
-            AvatarView(seed: "preview", gender: .male, stage: .adult, equipped: [item], equippedOutfit: character.equippedOutfit)
+            AvatarView(seed: "preview", gender: .male, stage: .adult, equippedOutfit: item)
                 .frame(width: 54, height: 54)
                 .background(Color(.tertiarySystemBackground))
                 .clipShape(Circle())
@@ -52,17 +55,14 @@ struct ShopView: View {
             Spacer()
             if owned {
                 Button(equipped ? "Equipped" : "Equip") {
-                    if equipped {
-                        viewModel.unequip(slot: item.slot)
-                    } else {
-                        viewModel.equip(item)
-                    }
+                    viewModel.equipOutfit(item)
                 }
                 .buttonStyle(.bordered)
                 .tint(equipped ? .green : .blue)
+                .disabled(equipped)
             } else {
                 Button("Buy") {
-                    viewModel.purchase(item)
+                    viewModel.purchaseOutfit(item)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(character.cash < item.price)
@@ -75,5 +75,5 @@ struct ShopView: View {
 #Preview {
     let vm = GameViewModel()
     vm.startNewLife()
-    return ShopView(viewModel: vm)
+    return ClothingShopView(viewModel: vm)
 }

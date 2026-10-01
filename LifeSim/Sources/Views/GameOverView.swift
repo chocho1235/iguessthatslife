@@ -8,7 +8,7 @@ struct GameOverView: View {
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
-            AvatarView(seed: character.fullName, gender: character.gender, stage: character.stage, isAlive: false, scars: character.scars)
+            AvatarView(seed: character.fullName, gender: character.gender, stage: character.stage, country: character.country, isAlive: false, scars: character.scars)
                 .frame(width: 120, height: 120)
                 .background(Color(.secondarySystemBackground))
                 .clipShape(Circle())

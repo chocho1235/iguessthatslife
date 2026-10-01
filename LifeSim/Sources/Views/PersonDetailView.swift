@@ -6,13 +6,16 @@ struct PersonDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var feedback: String?
 
-    private var giftCost: Int { 15 }
+    private var giftCost: Int {
+        guard let country = viewModel.character?.country else { return 15 }
+        return max(1, Int(15 * CountryData.profile(for: country).salaryMultiplier))
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    AvatarView(seed: person.name, gender: person.gender, stage: person.stage, isAlive: person.isAlive)
+                    AvatarView(seed: person.name, gender: person.gender, stage: person.stage, country: person.country, isAlive: person.isAlive)
                         .frame(width: 120, height: 120)
                         .background(Color(.secondarySystemBackground))
                         .clipShape(Circle())
@@ -97,6 +100,8 @@ struct PersonDetailView: View {
             return character.family.first(where: { $0.id == id })?.relationship ?? person.relationship
         case .friend(let id):
             return character.friends.first(where: { $0.id == id })?.relationship ?? person.relationship
+        case .stranger:
+            return person.relationship
         }
     }
 }

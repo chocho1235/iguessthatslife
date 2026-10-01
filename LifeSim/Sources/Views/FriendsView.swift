@@ -3,6 +3,7 @@ import SwiftUI
 struct FriendsView: View {
     let friends: [Friend]
     let stage: LifeStage
+    var country: String? = nil
     var onSelect: (PersonSelection) -> Void
 
     var body: some View {
@@ -24,12 +25,13 @@ struct FriendsView: View {
                                 stage: stage,
                                 isAlive: true,
                                 relationship: friend.relationship,
-                                label: "Friend"
+                                label: "Friend",
+                                country: country
                             )
                         )
                     } label: {
                         HStack {
-                            AvatarView(seed: friend.name, gender: friend.gender, stage: stage)
+                            AvatarView(seed: friend.name, gender: friend.gender, stage: stage, country: country)
                                 .frame(width: 40, height: 40)
                                 .background(Color(.tertiarySystemBackground))
                                 .clipShape(Circle())

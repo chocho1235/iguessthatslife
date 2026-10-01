@@ -5,6 +5,7 @@ struct CheckupCutsceneView: View {
     let patientSeed: String
     let patientGender: Gender
     let patientStage: LifeStage
+    var patientCountry: String? = nil
     var patientScars: Int = 0
     @Environment(\.dismiss) private var dismiss
     @State private var lineIndex = 0
@@ -65,7 +66,7 @@ struct CheckupCutsceneView: View {
                 }
                 .position(x: geo.size.width * 0.68, y: geo.size.height - 110)
 
-                AvatarView(seed: patientSeed, gender: patientGender, stage: patientStage, scars: patientScars)
+                AvatarView(seed: patientSeed, gender: patientGender, stage: patientStage, country: patientCountry, scars: patientScars)
                     .frame(width: 80, height: 80)
                     .background(Color.white)
                     .clipShape(Circle())

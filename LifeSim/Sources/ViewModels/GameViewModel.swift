@@ -5,6 +5,12 @@ final class GameViewModel: ObservableObject {
     @Published var character: Character?
     @Published var yearLog: [LogEntry] = []
     @Published var isGameOver: Bool = false
+    @Published var pendingSocialEvent: SocialEvent?
+    @Published var pendingLegalTrouble: LegalTrouble?
+    /// Bumped every time the character is physically attacked — views watch
+    /// this to flash the screen red and fire a haptic, independent of
+    /// whatever log text or sound already describes the moment.
+    @Published var attackTrigger: Int = 0
 
     private static let checkupOpeners: [[String]] = [
         ["Hi %name%, come on in — let's take a look at you.", "Alright, let me check your vitals..."],
@@ -22,20 +28,22 @@ final class GameViewModel: ObservableObject {
     ]
 
     func startNewLife() {
+        pendingSocialEvent = nil
         let gender: Gender = Bool.random() ? .male : .female
-        let firstName = NameData.randomFirstName(for: gender)
-        let lastName = NameData.randomLastName()
         let country = NameData.randomCountry()
+        let region = CountryData.profile(for: country).region
+        let firstName = NameData.randomFirstName(for: gender, region: region)
+        let lastName = NameData.randomLastName(region: region)
 
         var family: [FamilyMember] = [
-            FamilyMember(name: "\(NameData.randomFirstName(for: .female)) \(lastName)", relation: .mother, relationship: Int.random(in: 60...95)),
-            FamilyMember(name: "\(NameData.randomFirstName(for: .male)) \(lastName)", relation: .father, relationship: Int.random(in: 60...95)),
+            FamilyMember(name: "\(NameData.randomFirstName(for: .female, region: region)) \(lastName)", relation: .mother, relationship: Int.random(in: 60...95)),
+            FamilyMember(name: "\(NameData.randomFirstName(for: .male, region: region)) \(lastName)", relation: .father, relationship: Int.random(in: 60...95)),
         ]
         if Bool.random() {
             let siblingGender: Gender = Bool.random() ? .male : .female
             family.append(
                 FamilyMember(
-                    name: "\(NameData.randomFirstName(for: siblingGender)) \(lastName)",
+                    name: "\(NameData.randomFirstName(for: siblingGender, region: region)) \(lastName)",
                     relation: siblingGender == .male ? .brother : .sister,
                     relationship: Int.random(in: 50...90)
                 )
@@ -50,23 +58,24 @@ final class GameViewModel: ObservableObject {
             age: 0,
             stats: Stats.random(),
             family: family,
-            cash: Int.random(in: 20...50)
+            cash: 0
         )
         yearLog = [LogEntry(text: "You were born in \(country) to \(family[0].name) and \(family[1].name).", isAlert: false)]
         isGameOver = false
     }
 
     func ageUp() {
-        guard var current = character, current.isAlive else { return }
+        guard pendingSocialEvent == nil, pendingLegalTrouble == nil, var current = character, current.isAlive else { return }
         current.age += 1
 
         let stage = current.stage
         let eventCount = Int.random(in: 1...3)
         var log: [LogEntry] = []
 
-        let allowance = Int.random(in: 5...25)
-        current.cash += allowance
-        log.append(LogEntry(text: "You received $\(allowance).", isAlert: false))
+        if let allowance = yearlyPocketMoney(for: current) {
+            current.cash += allowance
+            log.append(LogEntry(text: pocketMoneyText(for: current, amount: allowance), isAlert: false))
+        }
 
         for event in EventData.randomEvents(for: stage, count: eventCount) {
             current.stats.adjust(
@@ -79,24 +88,29 @@ final class GameViewModel: ObservableObject {
                 let index = Int.random(in: 0..<current.family.count)
                 current.family[index].adjustRelationship(event.relationshipDelta)
             }
-            if event.cashDelta != 0 {
-                current.cash = max(0, current.cash + event.cashDelta)
+            let scaledCashDelta = event.cashDelta == 0 ? 0 : (event.cashDelta > 0 ? localized(event.cashDelta, for: current) : -localized(-event.cashDelta, for: current))
+            if scaledCashDelta != 0 {
+                current.cash = max(0, current.cash + scaledCashDelta)
             }
             if let conditionID = event.grantsConditionID {
                 grantCondition(&current, id: conditionID)
+                if conditionID == "stab_wound" || conditionID == "gunshot_wound" {
+                    attackTrigger += 1
+                }
             }
 
             var entry = event.text(current)
-            if event.cashDelta > 0 {
-                entry += " (+$\(event.cashDelta))"
-            } else if event.cashDelta < 0 {
-                entry += " (-$\(abs(event.cashDelta)))"
+            if scaledCashDelta > 0 {
+                entry += " (+$\(scaledCashDelta))"
+            } else if scaledCashDelta < 0 {
+                entry += " (-$\(abs(scaledCashDelta)))"
             }
-            let isAlert = event.healthDelta < 0 || event.cashDelta < 0 || event.relationshipDelta < 0 || event.grantsConditionID != nil
+            let isAlert = event.healthDelta < 0 || scaledCashDelta < 0 || event.relationshipDelta < 0 || event.grantsConditionID != nil
             log.append(LogEntry(text: entry, isAlert: isAlert))
         }
 
         handleFriends(&current, log: &log)
+        handleRelationshipEvents(&current, log: &log)
         handleConditions(&current, log: &log)
         rollForVision(&current, log: &log)
         handleCareer(&current, log: &log)
@@ -107,6 +121,84 @@ final class GameViewModel: ObservableObject {
         yearLog = log
         if !current.isAlive {
             isGameOver = true
+            SoundManager.shared.play(.death)
+        } else if pendingSocialEvent != nil {
+            // A decision popup is about to appear — follow the normal
+            // age-up sound with a distinct notification chime.
+            SoundManager.shared.playSequence([.ageUp, .notify])
+        } else {
+            SoundManager.shared.play(.ageUp)
+        }
+    }
+
+    func resolveSocialEvent(accepted: Bool) {
+        guard let event = pendingSocialEvent, var current = character else { return }
+        pendingSocialEvent = nil
+
+        let result: LogEntry
+        switch event.kind {
+        case .moneyRequest:
+            result = resolveMoneyRequest(event, accepted: accepted, character: &current)
+        case .familyEmergency:
+            result = resolveFamilyEmergency(event, accepted: accepted, character: &current)
+        case .fightBackup:
+            result = resolveFightBackup(event, accepted: accepted, character: &current)
+        case .hangoutInvite:
+            result = resolveHangoutInvite(event, accepted: accepted, character: &current)
+        case .riskyScheme:
+            result = resolveRiskyScheme(event, accepted: accepted, character: &current)
+        case .coverStory:
+            result = resolveCoverStory(event, accepted: accepted, character: &current)
+        case .gangRecruitment:
+            result = resolveGangRecruitment(event, accepted: accepted, character: &current)
+        case .jobOffer:
+            result = resolveJobOffer(event, accepted: accepted, character: &current)
+        }
+
+        var log = yearLog
+        log.append(result)
+        checkForDeath(&current, log: &log)
+        character = current
+        yearLog = log
+        if !current.isAlive {
+            isGameOver = true
+            SoundManager.shared.play(.death)
+        }
+    }
+
+    /// Scales a flat, US-pegged dollar figure to the character's local
+    /// economy — the same approach already used for job wages and tuition.
+    private func localized(_ amount: Int, for character: Character) -> Int {
+        max(0, Int(Double(amount) * CountryData.profile(for: character.country).salaryMultiplier))
+    }
+
+    private func yearlyPocketMoney(for character: Character) -> Int? {
+        let raw: Int?
+        switch character.age {
+        case 0...5:
+            raw = nil
+        case 6...10:
+            raw = Double.random(in: 0...1) < 0.45 ? Int.random(in: 1...5) : nil
+        case 11...12:
+            raw = Double.random(in: 0...1) < 0.60 ? Int.random(in: 3...10) : nil
+        case 13...15:
+            raw = Double.random(in: 0...1) < 0.70 ? Int.random(in: 5...18) : nil
+        case 16...17:
+            raw = Double.random(in: 0...1) < 0.45 ? Int.random(in: 10...35) : nil
+        default:
+            raw = nil
+        }
+        return raw.map { localized($0, for: character) }
+    }
+
+    private func pocketMoneyText(for character: Character, amount: Int) -> String {
+        switch character.age {
+        case 6...12:
+            return "You saved $\(amount) in pocket money."
+        case 13...17:
+            return "You earned $\(amount) from chores and odd jobs."
+        default:
+            return "You received $\(amount)."
         }
     }
 
@@ -118,18 +210,38 @@ final class GameViewModel: ObservableObject {
         current.ownedAccessoryIDs.insert(accessory.id)
         current.equippedAccessoryIDs[accessory.slot] = accessory.id
         character = current
+        SoundManager.shared.play(.cash)
     }
 
     func equip(_ accessory: Accessory) {
         guard var current = character, current.ownedAccessoryIDs.contains(accessory.id) else { return }
         current.equippedAccessoryIDs[accessory.slot] = accessory.id
         character = current
+        SoundManager.shared.play(.tap)
     }
 
     func unequip(slot: AccessorySlot) {
         guard var current = character else { return }
         current.equippedAccessoryIDs[slot] = nil
         character = current
+    }
+
+    func purchaseOutfit(_ outfit: Outfit) {
+        guard var current = character,
+              current.cash >= outfit.price,
+              !current.ownedOutfitIDs.contains(outfit.id) else { return }
+        current.cash -= outfit.price
+        current.ownedOutfitIDs.insert(outfit.id)
+        current.equippedOutfitID = outfit.id
+        character = current
+        SoundManager.shared.play(.cash)
+    }
+
+    func equipOutfit(_ outfit: Outfit) {
+        guard var current = character, current.ownedOutfitIDs.contains(outfit.id) else { return }
+        current.equippedOutfitID = outfit.id
+        character = current
+        SoundManager.shared.play(.tap)
     }
 
     @discardableResult
@@ -139,18 +251,21 @@ final class GameViewModel: ObservableObject {
         adjustRelationship(&current, ref: ref, by: gain)
         current.stats.adjust(happiness: 2)
         character = current
+        SoundManager.shared.play(.friendJoin)
         return "You spent quality time together. Relationship +\(gain)."
     }
 
     @discardableResult
     func giveGift(with ref: PersonRef, cost: Int = 15) -> String {
         guard var current = character else { return "" }
-        guard current.cash >= cost else { return "You don't have enough cash for a gift." }
-        current.cash -= cost
+        let localCost = localized(cost, for: current)
+        guard current.cash >= localCost else { return "You don't have enough cash for a gift." }
+        current.cash -= localCost
         let gain = Int.random(in: 12...20)
         adjustRelationship(&current, ref: ref, by: gain)
         character = current
-        return "You gave a $\(cost) gift. Relationship +\(gain)."
+        SoundManager.shared.play(.success)
+        return "You gave a $\(localCost) gift. Relationship +\(gain)."
     }
 
     @discardableResult
@@ -158,12 +273,14 @@ final class GameViewModel: ObservableObject {
         guard var current = character else { return "" }
         let relationship = relationshipValue(current, ref: ref)
         if relationship >= 50 {
-            let amount = Int.random(in: 5...25)
+            let amount = localized(Int.random(in: 5...25), for: current)
             current.cash += amount
             character = current
+            SoundManager.shared.play(.cash)
             return "They happily gave you $\(amount)."
         } else {
             character = current
+            SoundManager.shared.play(.tap)
             return "They said no — you're not close enough yet."
         }
     }
@@ -176,11 +293,13 @@ final class GameViewModel: ObservableObject {
             adjustRelationship(&current, ref: ref, by: gain)
             current.stats.adjust(happiness: 5)
             character = current
+            SoundManager.shared.play(.success)
             return "Your prank landed perfectly! Everyone had a good laugh. Relationship +\(gain)."
         } else {
             let loss = Int.random(in: 5...12)
             adjustRelationship(&current, ref: ref, by: -loss)
             character = current
+            SoundManager.shared.play(.rejected)
             return "Your prank backfired badly. Relationship -\(loss)."
         }
     }
@@ -192,6 +311,7 @@ final class GameViewModel: ObservableObject {
         adjustRelationship(&current, ref: ref, by: -loss)
         current.stats.adjust(happiness: -Int.random(in: 2...6))
         character = current
+        SoundManager.shared.play(.alert)
         return "You got into a heated argument. Relationship -\(loss)."
     }
 
@@ -206,15 +326,262 @@ final class GameViewModel: ObservableObject {
                 current.scars += 1
             }
             character = current
+            SoundManager.shared.play(.alert)
             return "You got caught red-handed! They're furious with you. Relationship -\(loss)."
         } else {
-            let amount = Int.random(in: 5...30)
+            let amount = localized(Int.random(in: 5...30), for: current)
             current.cash += amount
             let loss = Int.random(in: 5...10)
             adjustRelationship(&current, ref: ref, by: -loss)
             character = current
+            SoundManager.shared.play(.success)
             return "You secretly took $\(amount) without getting caught, but you feel a little guilty."
         }
+    }
+
+    @discardableResult
+    func purchaseWeapon(_ weapon: Weapon) -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 13 else { return "You are too young to buy a weapon." }
+        guard current.weaponName == nil else { return "You already have a \(current.weaponName!). Sell it first." }
+        let cost = localized(weapon.price, for: current)
+        guard current.cash >= cost else { return "You need $\(cost) to buy this." }
+
+        current.cash -= cost
+        current.weaponName = weapon.name
+        if weapon.isIllegal {
+            current.criminalRecord += 1
+        }
+        character = current
+        SoundManager.shared.play(weapon.isIllegal ? .danger : .cash)
+        return weapon.isIllegal
+            ? "You illegally bought a \(weapon.name) for $\(cost). That's now on your criminal record."
+            : "You bought a \(weapon.name) for $\(cost)."
+    }
+
+    @discardableResult
+    func sellWeapon() -> String {
+        guard var current = character, let name = current.weaponName else { return "" }
+        let weapon = WeaponData.all.first { $0.name == name }
+        let refund = localized(weapon?.sellValue ?? 0, for: current)
+        current.cash += refund
+        current.weaponName = nil
+        character = current
+        SoundManager.shared.play(.cash)
+        return "You sold your \(name) for $\(refund)."
+    }
+
+    @discardableResult
+    func joinGang() -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 13 else { return "You are too young to join a gang." }
+        guard current.gangName == nil else { return "You are already with \(current.gangName!)." }
+
+        let gangNames = ["Northside Crew", "Red Lane Mob", "Glass Street", "The Yard", "Kingfisher Set"]
+        let chance = 0.30 + Double(100 - current.stats.smarts) / 450.0 + Double(current.stats.looks) / 700.0
+        if Double.random(in: 0...1) < chance {
+            let name = gangNames.randomElement()!
+            current.gangName = name
+            current.criminalRecord += 1
+            current.stats.adjust(happiness: Int.random(in: 2...8), smarts: -Int.random(in: 0...2))
+            SoundManager.shared.play(.danger)
+            return commitCrimeResult(current, text: "You joined \(name). People treat you differently now.", isAlert: true)
+        }
+
+        let injuryName = inflictViolentInjury(&current, allowGunshot: false)
+        current.stats.adjust(happiness: -Int.random(in: 2...7))
+        SoundManager.shared.play(.ouch)
+        return commitCrimeResult(current, text: "You tried to join a gang and got beaten up instead, leaving you with \(injuryName.lowercased()).", isAlert: true)
+    }
+
+    @discardableResult
+    func leaveGang() -> String {
+        guard var current = character else { return "" }
+        guard let gangName = current.gangName else { return "You are not in a gang." }
+
+        if Double.random(in: 0...1) < 0.55 {
+            current.gangName = nil
+            current.stats.adjust(happiness: 4)
+            SoundManager.shared.play(.success)
+            return commitCrimeResult(current, text: "You walked away from \(gangName). It may not stay quiet forever.", isAlert: true)
+        }
+
+        let injuryName = inflictViolentInjury(&current, allowGunshot: false)
+        current.stats.adjust(happiness: -Int.random(in: 2...8))
+        SoundManager.shared.play(.ouch)
+        return commitCrimeResult(current, text: "\(gangName) did not let you leave cleanly, leaving you with \(injuryName.lowercased()).", isAlert: true)
+    }
+
+    func robberyEligibilityMessage() -> String? {
+        guard let current = character else { return "Start a life before attempting a robbery." }
+        guard current.age >= 13 else { return "You must be at least 13 to attempt a robbery." }
+        return nil
+    }
+
+    /// Rolled once right before the mini-game launches: a small chance the
+    /// mark is connected, and a randomized difficulty so no two robberies
+    /// play quite the same.
+    func prepareRobbery() -> RobberySetup {
+        RobberySetup(isMafiaBoss: Double.random(in: 0...1) < 0.08, difficulty: .random(), scenario: .random())
+    }
+
+    @discardableResult
+    func resolveMafiaRobberyCaught() -> String {
+        guard var current = character else { return "" }
+        current.isAlive = false
+        current.causeOfDeath = "a mafia boss's bodyguards, after a robbery gone very wrong"
+        character = current
+
+        let text = "Turns out the person you tried to rob was a mafia boss. The moment his bodyguards spotted you, they didn't call the police — they opened fire."
+        var log = yearLog
+        log.append(LogEntry(text: text, isAlert: true))
+        yearLog = log
+        isGameOver = true
+        attackTrigger += 1
+        SoundManager.shared.playSequence([.alert, .death])
+        return text
+    }
+
+    @discardableResult
+    func resolveRobberyMiniGame(success: Bool, lootValue: Int? = nil, scenario: RobberyScenario = .pickpocket) -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 13 else { return "You must be at least 13 to attempt a robbery." }
+
+        current.robberyCount += 1
+        var summary: String
+        var injured = false
+        let scenarioNoun = scenario == .houseBurglary ? "house" : "robbery"
+
+        if success {
+            let amount = lootValue.map { localized($0, for: current) } ?? localized(Int.random(in: 35...380), for: current)
+            current.cash += amount
+            current.criminalRecord += 1
+            current.stats.adjust(happiness: -Int.random(in: 1...6), smarts: 1)
+            summary = scenario == .houseBurglary
+                ? "You slipped out of the house with jewelry and cash worth $\(amount)."
+                : "You lifted a wallet without being noticed and escaped with $\(amount)."
+        } else {
+            let fine = min(current.cash, localized(Int.random(in: 30...240), for: current))
+            current.cash -= fine
+            current.criminalRecord += 2
+            let injuryName = inflictViolentInjury(&current, allowGunshot: false)
+            current.stats.adjust(happiness: -Int.random(in: 5...12))
+            injured = true
+            summary = scenario == .houseBurglary
+                ? "The homeowner came back and caught you inside. You lost $\(fine) in the scuffle and came away with \(injuryName.lowercased())."
+                : "You were spotted during the \(scenarioNoun) and they fought back. You lost $\(fine) and came away with \(injuryName.lowercased())."
+        }
+
+        // The more robberies you've pulled and the longer your record, the
+        // more likely a police squad is already closing in — independent of
+        // whether this particular heist went smoothly.
+        let arrestChance = min(0.75, 0.04 + Double(current.robberyCount) * 0.035 + Double(current.criminalRecord) * 0.02)
+        if Double.random(in: 0...1) < arrestChance {
+            summary += " Moments later, a police squad caught up with you and placed you under arrest."
+            let result = commitCrimeResult(current, text: summary, isAlert: true)
+            SoundManager.shared.playSequence(injured ? [.ouch, .alert] : [.alert])
+            pendingLegalTrouble = LegalTrouble(
+                chargeDescription: "Armed Robbery",
+                bailCost: localized(Int.random(in: 250...900), for: current),
+                lawyerCost: localized(Int.random(in: 6000...15000), for: current),
+                confiscatesWeaponWithoutLawyer: current.weaponName != nil
+            )
+            return result
+        }
+
+        SoundManager.shared.playSequence(injured ? [.ouch, .alert] : [.success])
+        return commitCrimeResult(current, text: summary, isAlert: true)
+    }
+
+    /// Hiring a lawyer costs far more than bail, but keeps the charge from
+    /// seriously damaging your record and keeps your weapon out of evidence.
+    func resolveLegalTrouble(hireLawyer: Bool) -> String {
+        guard let trouble = pendingLegalTrouble, var current = character else { return "" }
+        pendingLegalTrouble = nil
+
+        let text: String
+        if hireLawyer, current.cash >= trouble.lawyerCost {
+            current.cash -= trouble.lawyerCost
+            current.criminalRecord += 1
+            current.stats.adjust(happiness: -Int.random(in: 1...4))
+            text = "Your lawyer got the \(trouble.chargeDescription) charge reduced to a slap on the wrist, for a staggering $\(trouble.lawyerCost) in fees."
+            SoundManager.shared.play(.cash)
+        } else {
+            let bail = min(current.cash, trouble.bailCost)
+            current.cash -= bail
+            current.criminalRecord += 3
+            current.stats.adjust(happiness: -Int.random(in: 8...16))
+            if trouble.confiscatesWeaponWithoutLawyer {
+                current.weaponName = nil
+            }
+            text = "You couldn't afford a lawyer, so you took the charge as-is — $\(bail) in bail, a heavier criminal record\(trouble.confiscatesWeaponWithoutLawyer ? ", and your weapon confiscated as evidence" : "")."
+            SoundManager.shared.play(.alert)
+        }
+
+        return commitCrimeResult(current, text: text, isAlert: true)
+    }
+
+    @discardableResult
+    func attemptMurder() -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 16 else { return "You are too young for this." }
+        guard let target = randomCrimeTarget(from: current) else { return "There is nobody close enough to target." }
+
+        current.criminalRecord += 3
+        let chance = 0.10
+            + Double(current.stats.smarts) / 650.0
+            + (current.weaponName == nil ? 0 : 0.18)
+            + (current.gangName == nil ? 0 : 0.10)
+        if Double.random(in: 0...1) < chance {
+            removeCrimeTarget(target.ref, from: &current)
+            current.stats.adjust(happiness: -Int.random(in: 12...28), smarts: -Int.random(in: 1...4))
+            SoundManager.shared.play(.death)
+            return commitCrimeResult(current, text: "\(target.name) died after your attack. Your life feels darker now.", isAlert: true)
+        }
+
+        let fine = min(current.cash, localized(Int.random(in: 90...600), for: current))
+        current.cash -= fine
+        let injuryName = inflictViolentInjury(&current, allowGunshot: true)
+        current.stats.adjust(happiness: -Int.random(in: 8...18))
+        if current.stats.health <= 0, Double.random(in: 0...1) < 0.22 {
+            current.isAlive = false
+            current.causeOfDeath = "a violent attack gone wrong"
+            SoundManager.shared.playSequence([.ouch, .death])
+            return commitCrimeResult(current, text: "Your attack on \(target.name) went horribly wrong. You died from your injuries.", isAlert: true)
+        }
+        SoundManager.shared.playSequence([.ouch, .alert])
+        return commitCrimeResult(current, text: "Your attack on \(target.name) failed and they fought back. You lost $\(fine) and came away with \(injuryName.lowercased()).", isAlert: true)
+    }
+
+    @discardableResult
+    func hireHitman() -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 18 else { return "You must be an adult to hire a hitman." }
+        guard let target = randomCrimeTarget(from: current) else { return "There is nobody close enough to target." }
+
+        let cost = localized(900, for: current)
+        guard current.cash >= cost else { return "You need $\(cost) to hire a hitman." }
+        current.cash -= cost
+        current.criminalRecord += 4
+
+        let roll = Double.random(in: 0...1)
+        if roll < 0.34 {
+            removeCrimeTarget(target.ref, from: &current)
+            current.stats.adjust(happiness: -Int.random(in: 15...32), smarts: -Int.random(in: 2...5))
+            SoundManager.shared.play(.death)
+            return commitCrimeResult(current, text: "The hitman killed \(target.name). You paid $\(cost), and the guilt is hard to shake.", isAlert: true)
+        }
+        if roll < 0.68 {
+            let fine = min(current.cash, localized(Int.random(in: 150...700), for: current))
+            current.cash -= fine
+            current.stats.adjust(happiness: -Int.random(in: 8...18))
+            SoundManager.shared.play(.alert)
+            return commitCrimeResult(current, text: "The hitman was a setup. You lost $\(cost + fine) and gained a dangerous criminal record.", isAlert: true)
+        }
+
+        current.stats.adjust(happiness: -Int.random(in: 4...12))
+        SoundManager.shared.play(.tap)
+        return commitCrimeResult(current, text: "The hitman vanished with your $\(cost). Nothing happened except the dread.", isAlert: true)
     }
 
     func performCheckup() -> CheckupOutcome {
@@ -244,6 +611,7 @@ final class GameViewModel: ObservableObject {
         }
 
         character = current
+        SoundManager.shared.play(diagnosed.isEmpty ? .tap : .diagnose)
         return CheckupOutcome(dialogue: opening, diagnosedConditions: diagnosed)
     }
 
@@ -254,12 +622,13 @@ final class GameViewModel: ObservableObject {
               current.conditions[index].isDiagnosed,
               let condition = ConditionData.byID[current.conditions[index].conditionID] else { return "" }
         guard !condition.requiresGlasses else { return "This isn't fixed by treatment — try a pair of glasses from the Shop." }
-        let cost = condition.severity.requiredService.cost
+        let cost = condition.treatmentCost
         guard current.cash >= cost else { return "You can't afford treatment for this right now." }
         current.cash -= cost
         current.conditions.remove(at: index)
         current.stats.adjust(health: Int.random(in: 5...15))
         character = current
+        SoundManager.shared.play(.treat)
         return "\(condition.name) treated successfully!"
     }
 
@@ -274,7 +643,7 @@ final class GameViewModel: ObservableObject {
         guard !treatableIndices.isEmpty else { return "" }
 
         let totalCost = treatableIndices.reduce(0) { sum, index in
-            sum + (ConditionData.byID[current.conditions[index].conditionID]?.severity.requiredService.cost ?? 0)
+            sum + (ConditionData.byID[current.conditions[index].conditionID]?.treatmentCost ?? 0)
         }
         guard current.cash >= totalCost else { return "You can't afford to treat everything ($\(totalCost))." }
 
@@ -284,7 +653,70 @@ final class GameViewModel: ObservableObject {
         current.conditions.removeAll { treatedIDs.contains($0.id) }
         current.stats.adjust(health: Int.random(in: 5...15))
         character = current
+        SoundManager.shared.play(.treat)
         return "Treated: \(names.joined(separator: ", "))."
+    }
+
+    private func commitCrimeResult(_ current: Character, text: String, isAlert: Bool) -> String {
+        var updated = current
+        var log = yearLog
+        log.append(LogEntry(text: text, isAlert: isAlert))
+        checkForDeath(&updated, log: &log)
+        character = updated
+        yearLog = log
+        if !updated.isAlive {
+            isGameOver = true
+        }
+        return text
+    }
+
+    private func randomCrimeTarget(from character: Character) -> (ref: PersonRef, name: String)? {
+        let familyTargets = character.family
+            .filter(\.isAlive)
+            .map { (ref: PersonRef.family($0.id), name: $0.name) }
+        let friendTargets = character.friends
+            .map { (ref: PersonRef.friend($0.id), name: $0.name) }
+        return (familyTargets + friendTargets).randomElement()
+    }
+
+    private func removeCrimeTarget(_ ref: PersonRef, from character: inout Character) {
+        switch ref {
+        case .family(let id):
+            if let index = character.family.firstIndex(where: { $0.id == id }) {
+                character.family[index].isAlive = false
+                character.family[index].relationship = 0
+            }
+        case .friend(let id):
+            character.friends.removeAll { $0.id == id }
+        case .stranger:
+            break
+        }
+    }
+
+    /// Violence always leaves a specific mark — a bruise, a break, a stabbing,
+    /// or (rarely, when guns are plausibly in play) a gunshot — rather than a
+    /// flat, faceless health deduction.
+    @discardableResult
+    private func inflictViolentInjury(_ character: inout Character, allowGunshot: Bool) -> String {
+        var candidates: [(id: String, weight: Int)] = [
+            ("minor_injury", 55),
+            ("broken_arm", 18),
+            ("stab_wound", 20),
+        ]
+        if allowGunshot {
+            candidates.append(("gunshot_wound", 7))
+        }
+        let stage = character.stage
+        let available = candidates.filter { ConditionData.byID[$0.id]?.stages.contains(stage) == true }
+        let pool = available.isEmpty ? [(id: "minor_injury", weight: 1)] : available
+        var weighted: [String] = []
+        for candidate in pool {
+            weighted.append(contentsOf: Array(repeating: candidate.id, count: candidate.weight))
+        }
+        let chosenID = weighted.randomElement() ?? "minor_injury"
+        grantCondition(&character, id: chosenID)
+        attackTrigger += 1
+        return ConditionData.byID[chosenID]?.name ?? "an injury"
     }
 
     private func grantCondition(_ character: inout Character, id: String) {
@@ -365,6 +797,7 @@ final class GameViewModel: ObservableObject {
         current.universityName = universityName
         current.stats.adjust(happiness: 5, smarts: 15)
         character = current
+        SoundManager.shared.play(.graduate)
         return "Congratulations! You graduated from \(universityName)."
     }
 
@@ -392,6 +825,7 @@ final class GameViewModel: ObservableObject {
                 current.scars += 1
             }
             character = current
+            SoundManager.shared.play(.fight)
             return JobApplicationOutcome(result: .fight, job: session.job)
         }
 
@@ -412,6 +846,7 @@ final class GameViewModel: ObservableObject {
             current.yearsAtJob = 0
         }
         character = current
+        SoundManager.shared.play(hired ? .hired : .rejected)
         return JobApplicationOutcome(result: hired ? .hired : .rejected, job: session.job)
     }
 
@@ -422,6 +857,113 @@ final class GameViewModel: ObservableObject {
         current.yearsAtJob = 0
         character = current
         return "You quit your job as \(job.title)."
+    }
+
+    @discardableResult
+    func performActivity(_ kind: ActivityKind) -> String {
+        guard var current = character else { return "" }
+        let name = current.firstName
+        let result: String
+
+        switch kind {
+        case .gym:
+            current.stats.adjust(happiness: Int.random(in: 2...6), looks: Int.random(in: 1...3))
+            result = "\(name) hit the gym and feels great."
+        case .reading:
+            current.stats.adjust(happiness: 1, smarts: Int.random(in: 2...5))
+            result = "\(name) read a book and learned something new."
+        case .volunteering:
+            current.stats.adjust(happiness: Int.random(in: 3...7))
+            if !current.family.isEmpty {
+                let index = Int.random(in: 0..<current.family.count)
+                current.family[index].adjustRelationship(Int.random(in: 2...5))
+            }
+            result = "\(name) volunteered locally and felt fulfilled."
+        case .meditating:
+            current.stats.adjust(happiness: Int.random(in: 3...8))
+            result = "\(name) meditated and feels calmer."
+        case .hobby:
+            current.stats.adjust(happiness: Int.random(in: 2...6), smarts: Bool.random() ? 1 : 0, looks: Bool.random() ? 1 : 0)
+            result = "\(name) spent time on a hobby and had fun."
+        }
+
+        character = current
+        SoundManager.shared.play(kind == .reading || kind == .meditating ? .tap : .cheer)
+        return result
+    }
+
+    func migrationEligibilityMessage(to country: String) -> String? {
+        guard let current = character else { return "Start a life before migrating." }
+        guard current.country != country else { return "You already live here." }
+        guard current.stage != .infant, current.stage != .child else { return "Too young to migrate on your own." }
+        let cost = MigrationData.migrationCost(for: CountryData.profile(for: country))
+        guard current.cash >= cost else { return "You need $\(cost) saved up to afford the move." }
+        return nil
+    }
+
+    func startMigration(to country: String) -> MigrationQuizSession? {
+        guard migrationEligibilityMessage(to: country) == nil else { return nil }
+        return MigrationData.quizSession(for: country)
+    }
+
+    func resolveMigration(_ session: MigrationQuizSession, answers: [Int]) -> MigrationOutcome {
+        guard var current = character else {
+            return MigrationOutcome(approved: false, destinationCountry: session.destinationCountry, amountCharged: 0, correctCount: 0, totalQuestions: session.questions.count)
+        }
+
+        // Carrying an illegal weapon across a border is its own problem,
+        // independent of how well the visa interview went.
+        if let weaponName = current.weaponName,
+           WeaponData.all.first(where: { $0.name == weaponName })?.isIllegal == true,
+           Double.random(in: 0...1) < 0.9 {
+            current.weaponName = nil
+            character = current
+            SoundManager.shared.playSequence([.alert, .rejected])
+            pendingLegalTrouble = LegalTrouble(
+                chargeDescription: "Weapon Smuggling",
+                bailCost: localized(Int.random(in: 600...1800), for: current),
+                lawyerCost: localized(Int.random(in: 9000...20000), for: current),
+                confiscatesWeaponWithoutLawyer: false
+            )
+            return MigrationOutcome(
+                approved: false,
+                destinationCountry: session.destinationCountry,
+                amountCharged: 0,
+                correctCount: 0,
+                totalQuestions: session.questions.count,
+                note: "Border agents found your \(weaponName) during the search. You were detained on the spot and your visa application was denied."
+            )
+        }
+
+        let correctCount = zip(session.questions, answers).filter { $0.0.correctIndex == $0.1 }.count
+        let passedQuiz = correctCount * 2 >= session.questions.count
+
+        // Wealthier, more developed countries run stricter background
+        // checks — a longer criminal record makes them far more likely to
+        // simply turn you away, even if the interview itself went fine.
+        let destinationProfile = CountryData.profile(for: session.destinationCountry)
+        let runsBackgroundCheck = destinationProfile.salaryMultiplier >= 0.8
+        let backgroundCheckFails = runsBackgroundCheck && current.criminalRecord > 0
+            && Double.random(in: 0...1) < min(0.9, Double(current.criminalRecord) * 0.12)
+
+        if passedQuiz, current.cash >= session.cost, !backgroundCheckFails {
+            current.cash -= session.cost
+            current.country = session.destinationCountry
+            current.job = nil
+            current.yearsAtJob = 0
+            character = current
+            SoundManager.shared.play(.achievement)
+            return MigrationOutcome(approved: true, destinationCountry: session.destinationCountry, amountCharged: session.cost, correctCount: correctCount, totalQuestions: session.questions.count)
+        } else {
+            let fee = min(current.cash, session.cost / 5)
+            current.cash -= fee
+            character = current
+            SoundManager.shared.play(.rejected)
+            let note = backgroundCheckFails
+                ? "\(session.destinationCountry)'s background check flagged your criminal record. Visa denied regardless of your interview score."
+                : nil
+            return MigrationOutcome(approved: false, destinationCountry: session.destinationCountry, amountCharged: fee, correctCount: correctCount, totalQuestions: session.questions.count, note: note)
+        }
     }
 
     private func handleCareer(_ character: inout Character, log: inout [LogEntry]) {
@@ -460,6 +1002,8 @@ final class GameViewModel: ObservableObject {
             return character.family.first(where: { $0.id == id })?.relationship ?? 0
         case .friend(let id):
             return character.friends.first(where: { $0.id == id })?.relationship ?? 0
+        case .stranger:
+            return 0
         }
     }
 
@@ -473,14 +1017,277 @@ final class GameViewModel: ObservableObject {
             if let index = character.friends.firstIndex(where: { $0.id == id }) {
                 character.friends[index].adjustRelationship(delta)
             }
+        case .stranger:
+            break
         }
+    }
+
+    private func personName(_ character: Character, ref: PersonRef) -> String? {
+        switch ref {
+        case .family(let id):
+            return character.family.first(where: { $0.id == id })?.name
+        case .friend(let id):
+            return character.friends.first(where: { $0.id == id })?.name
+        case .stranger:
+            return nil
+        }
+    }
+
+    private func familyLabel(_ character: Character, ref: PersonRef) -> String? {
+        guard case .family(let id) = ref else { return nil }
+        return character.family.first(where: { $0.id == id })?.relation.rawValue
+    }
+
+    private func friendVolatility(_ character: Character, ref: PersonRef) -> Int {
+        guard case .friend(let id) = ref else { return 10 }
+        return character.friends.first(where: { $0.id == id })?.volatility ?? 10
+    }
+
+    private func isFriend(_ ref: PersonRef) -> Bool {
+        if case .friend = ref { return true }
+        return false
+    }
+
+    private func resolveMoneyRequest(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        if accepted {
+            guard character.cash >= event.amount else {
+                adjustRelationship(&character, ref: event.actorRef, by: -4)
+                SoundManager.shared.play(.rejected)
+                return LogEntry(text: "You tried to help \(event.actorName), but you didn't have enough cash. They were disappointed.", isAlert: true)
+            }
+            character.cash -= event.amount
+            let gain = Int.random(in: 8...16)
+            adjustRelationship(&character, ref: event.actorRef, by: gain)
+            character.stats.adjust(happiness: 2)
+            SoundManager.shared.play(.cheer)
+            return LogEntry(text: "You gave \(event.actorName) $\(event.amount). Relationship +\(gain).", isAlert: false)
+        }
+
+        let loss = Int.random(in: 6...18)
+        adjustRelationship(&character, ref: event.actorRef, by: -loss)
+        let volatility = friendVolatility(character, ref: event.actorRef)
+        let fightChance = isFriend(event.actorRef) ? max(0.01, Double(volatility - 72) / 180.0) : 0
+        if Double.random(in: 0...1) < fightChance {
+            let injuryName = inflictViolentInjury(&character, allowGunshot: false)
+            character.stats.adjust(happiness: -Int.random(in: 3...8))
+            if character.stats.health <= 0, Double.random(in: 0...1) < 0.16 {
+                character.isAlive = false
+                character.causeOfDeath = "a fight with \(event.actorName)"
+                SoundManager.shared.playSequence([.ouch, .death])
+                return LogEntry(text: "You refused \(event.actorName)'s cash request. They snapped, started a fight, and you died from your injuries.", isAlert: true)
+            }
+            SoundManager.shared.playSequence([.ouch, .fight])
+            return LogEntry(text: "You said no to \(event.actorName). They snapped and started a fight, leaving you with \(injuryName.lowercased()). Relationship -\(loss).", isAlert: true)
+        }
+        SoundManager.shared.play(.sad)
+        return LogEntry(text: "You said no to \(event.actorName). They took it badly. Relationship -\(loss).", isAlert: true)
+    }
+
+    private func resolveFamilyEmergency(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        if accepted {
+            guard character.cash >= event.amount else {
+                adjustRelationship(&character, ref: event.actorRef, by: -5)
+                SoundManager.shared.play(.rejected)
+                return LogEntry(text: "You wanted to help \(event.actorName), but couldn't afford it. Relationship -5.", isAlert: true)
+            }
+            character.cash -= event.amount
+            let gain = Int.random(in: 12...22)
+            adjustRelationship(&character, ref: event.actorRef, by: gain)
+            character.stats.adjust(happiness: 3)
+            SoundManager.shared.play(.cheer)
+            return LogEntry(text: "You helped \(event.actorName) through an emergency for $\(event.amount). Relationship +\(gain).", isAlert: false)
+        }
+
+        let loss = Int.random(in: 10...24)
+        adjustRelationship(&character, ref: event.actorRef, by: -loss)
+        character.stats.adjust(happiness: -Int.random(in: 1...5))
+
+        if case .family(let id) = event.actorRef,
+           let index = character.family.firstIndex(where: { $0.id == id }),
+           character.family[index].relationship < 18,
+           Double.random(in: 0...1) < 0.08 {
+            character.family[index].isAlive = false
+            SoundManager.shared.play(.death)
+            return LogEntry(text: "You refused to help \(event.actorName). Later that year, they passed away after things got worse.", isAlert: true)
+        }
+
+        SoundManager.shared.play(.sad)
+        return LogEntry(text: "You refused to help \(event.actorName) with the emergency. Relationship -\(loss).", isAlert: true)
+    }
+
+    private func resolveFightBackup(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        if !accepted {
+            let loss = Int.random(in: 8...18)
+            adjustRelationship(&character, ref: event.actorRef, by: -loss)
+            SoundManager.shared.play(.sad)
+            return LogEntry(text: "You stayed out of \(event.actorName)'s fight. They felt abandoned. Relationship -\(loss).", isAlert: true)
+        }
+
+        let actorRelationship = relationshipValue(character, ref: event.actorRef)
+        let gain = Int.random(in: 6...14)
+        adjustRelationship(&character, ref: event.actorRef, by: gain)
+        if let targetRef = event.targetRef {
+            adjustRelationship(&character, ref: targetRef, by: -Int.random(in: 10...22))
+        }
+
+        let injuryChance = max(0.12, 0.38 - Double(actorRelationship) / 350.0)
+        guard Double.random(in: 0...1) < injuryChance else {
+            character.stats.adjust(happiness: 2)
+            SoundManager.shared.play(.success)
+            return LogEntry(text: "You backed up \(event.actorName) and the confrontation ended without you getting hurt. Relationship +\(gain).", isAlert: false)
+        }
+
+        let injuryName = inflictViolentInjury(&character, allowGunshot: false)
+        character.stats.adjust(happiness: -Int.random(in: 2...8))
+
+        let deathRisk = character.stats.health <= 0 ? 0.18 : 0.015
+        if Double.random(in: 0...1) < deathRisk {
+            character.isAlive = false
+            character.causeOfDeath = "injuries from a fight"
+            SoundManager.shared.playSequence([.ouch, .death])
+            return LogEntry(text: "You backed up \(event.actorName), but the fight turned deadly. You died from your injuries.", isAlert: true)
+        }
+
+        SoundManager.shared.play(.ouch)
+        let target = event.targetName ?? "someone they knew"
+        return LogEntry(text: "You helped \(event.actorName) fight \(target) and came away with \(injuryName.lowercased()), but they trust you more. Relationship +\(gain).", isAlert: true)
+    }
+
+    private func resolveHangoutInvite(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        if accepted {
+            let gain = Int.random(in: 5...12)
+            adjustRelationship(&character, ref: event.actorRef, by: gain)
+            character.stats.adjust(happiness: Int.random(in: 4...10), smarts: Bool.random() ? 1 : 0)
+            let volatility = friendVolatility(character, ref: event.actorRef)
+            if Double.random(in: 0...1) < Double(volatility) / 420.0 {
+                grantCondition(&character, id: "minor_injury")
+                SoundManager.shared.play(.ouch)
+                return LogEntry(text: "You went out with \(event.actorName). It was fun, but got a little chaotic and you picked up some minor injuries. Relationship +\(gain).", isAlert: true)
+            }
+            SoundManager.shared.play(.party)
+            return LogEntry(text: "You spent the day with \(event.actorName). Happiness rose and Relationship +\(gain).", isAlert: false)
+        }
+
+        let loss = Int.random(in: 2...8)
+        adjustRelationship(&character, ref: event.actorRef, by: -loss)
+        character.stats.adjust(smarts: Bool.random() ? 2 : 0)
+        SoundManager.shared.play(.tap)
+        return LogEntry(text: "You skipped plans with \(event.actorName). Relationship -\(loss), but you had time for yourself.", isAlert: loss > 5)
+    }
+
+    private func resolveRiskyScheme(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        let volatility = friendVolatility(character, ref: event.actorRef)
+        if !accepted {
+            let loss = Int.random(in: 6...14)
+            adjustRelationship(&character, ref: event.actorRef, by: -loss)
+            character.stats.adjust(smarts: 1)
+            SoundManager.shared.play(.tap)
+            return LogEntry(text: "You refused \(event.actorName)'s risky plan. Relationship -\(loss), but it was probably the smart call.", isAlert: true)
+        }
+
+        let gain = Int.random(in: 8...16)
+        adjustRelationship(&character, ref: event.actorRef, by: gain)
+        let successChance = max(0.18, 0.62 - Double(volatility) / 260.0 + Double(character.stats.smarts) / 500.0)
+        if Double.random(in: 0...1) < successChance {
+            let cash = localized(Int.random(in: 10...75), for: character)
+            character.cash += cash
+            character.stats.adjust(happiness: Int.random(in: 3...9))
+            SoundManager.shared.play(.success)
+            return LogEntry(text: "\(event.title) worked out. You made $\(cash) and Relationship +\(gain).", isAlert: false)
+        }
+
+        let fine = min(character.cash, localized(Int.random(in: 0...45), for: character))
+        character.cash -= fine
+        let injuryName = inflictViolentInjury(&character, allowGunshot: false)
+        character.stats.adjust(happiness: -Int.random(in: 2...8))
+        if character.stats.health <= 0, Double.random(in: 0...1) < 0.12 {
+            character.isAlive = false
+            character.causeOfDeath = "a reckless scheme with \(event.actorName)"
+            SoundManager.shared.playSequence([.ouch, .death])
+            return LogEntry(text: "You joined \(event.actorName)'s reckless plan. It went catastrophically wrong, and you died.", isAlert: true)
+        }
+        SoundManager.shared.playSequence([.ouch, .alert])
+        let fineText = fine > 0 ? ", and it cost you $\(fine)" : ""
+        return LogEntry(text: "\(event.title) went wrong. You came away with \(injuryName.lowercased())\(fineText), but Relationship +\(gain).", isAlert: true)
+    }
+
+    private func resolveCoverStory(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        if accepted {
+            let gain = Int.random(in: 7...15)
+            adjustRelationship(&character, ref: event.actorRef, by: gain)
+            if let targetRef = event.targetRef {
+                adjustRelationship(&character, ref: targetRef, by: -Int.random(in: 4...12))
+            }
+            character.stats.adjust(happiness: -Int.random(in: 0...4))
+            SoundManager.shared.play(.success)
+            let target = event.targetName ?? "someone else"
+            return LogEntry(text: "You covered for \(event.actorName) with \(target). Relationship +\(gain), but the lie made things messier.", isAlert: true)
+        }
+
+        let loss = Int.random(in: 5...13)
+        adjustRelationship(&character, ref: event.actorRef, by: -loss)
+        character.stats.adjust(smarts: 1)
+        SoundManager.shared.play(.tap)
+        return LogEntry(text: "You refused to lie for \(event.actorName). Relationship -\(loss), but you kept out of the drama.", isAlert: true)
+    }
+
+    private func resolveGangRecruitment(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        if accepted {
+            character.gangName = event.actorName
+            character.criminalRecord += 1
+            character.stats.adjust(happiness: Int.random(in: 2...8), smarts: -Int.random(in: 0...2))
+            SoundManager.shared.play(.danger)
+            return LogEntry(text: "You joined up with \(event.actorName)'s crew. There's no easy way out now.", isAlert: true)
+        }
+
+        // Refusing a recruiter is a gamble — most walk away annoyed, but some
+        // don't take no for an answer.
+        let roll = Double.random(in: 0...1)
+        if roll < 0.12 {
+            character.isAlive = false
+            character.causeOfDeath = "refusing to join \(event.actorName)'s gang"
+            attackTrigger += 1
+            SoundManager.shared.playSequence([.ouch, .death])
+            return LogEntry(text: "\(event.actorName) did not take rejection well. Their crew made sure you'd never refuse anyone again.", isAlert: true)
+        }
+        if roll < 0.40 {
+            let injuryName = inflictViolentInjury(&character, allowGunshot: false)
+            character.stats.adjust(happiness: -Int.random(in: 5...14))
+            SoundManager.shared.playSequence([.ouch, .alert])
+            return LogEntry(text: "\(event.actorName) had you roughed up as a warning for turning them down, leaving you with \(injuryName.lowercased()).", isAlert: true)
+        }
+
+        character.stats.adjust(happiness: -Int.random(in: 1...5))
+        SoundManager.shared.play(.tap)
+        return LogEntry(text: "You turned \(event.actorName) down. They glared, but let it go — for now.", isAlert: false)
+    }
+
+    private func resolveJobOffer(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        guard accepted else {
+            SoundManager.shared.play(.tap)
+            return LogEntry(text: "You passed on \(event.actorName)'s offer.", isAlert: false)
+        }
+
+        let candidates = JobData.available(stage: character.stage, educationLevel: character.educationLevel, country: character.country)
+        guard let job = candidates.randomElement() else {
+            SoundManager.shared.play(.rejected)
+            return LogEntry(text: "\(event.actorName)'s lead fell through — nothing suitable panned out.", isAlert: true)
+        }
+
+        character.job = job
+        character.yearsAtJob = 0
+        character.stats.adjust(happiness: Int.random(in: 3...8))
+        SoundManager.shared.play(.hired)
+        return LogEntry(text: "\(event.actorName) came through — you're now working as \(job.title).", isAlert: false)
     }
 
     private func handleFriends(_ character: inout Character, log: inout [LogEntry]) {
         var remaining: [Friend] = []
         for var friend in character.friends {
-            friend.adjustRelationship(Int.random(in: -3...5))
-            if friend.relationship <= 0 || Double.random(in: 0...1) < 0.05 {
+            let drift = friend.volatility > 75 ? Int.random(in: -6...7) : Int.random(in: -3...5)
+            friend.adjustRelationship(drift)
+            let leaveChance = friendLeavingChance(relationship: friend.relationship) * (friend.volatility > 82 ? 0.55 : 1.0)
+            if friend.relationship <= 0 || Double.random(in: 0...1) < leaveChance {
                 log.append(LogEntry(text: "You and \(friend.name) drifted apart and are no longer friends.", isAlert: true))
             } else {
                 remaining.append(friend)
@@ -490,9 +1297,303 @@ final class GameViewModel: ObservableObject {
 
         if character.stage != .infant, character.friends.count < 5, Double.random(in: 0...1) < 0.25 {
             let gender: Gender = Bool.random() ? .male : .female
-            let name = "\(NameData.randomFirstName(for: gender)) \(NameData.randomLastName())"
+            let region = CountryData.profile(for: character.country).region
+            let name = "\(NameData.randomFirstName(for: gender, region: region)) \(NameData.randomLastName(region: region))"
             character.friends.append(Friend(name: name, gender: gender, relationship: Int.random(in: 40...70)))
             log.append(LogEntry(text: "You made a new friend, \(name)!", isAlert: false))
+        }
+    }
+
+    private func friendLeavingChance(relationship: Int) -> Double {
+        switch relationship {
+        case ..<15: return 0.36
+        case 15..<30: return 0.22
+        case 30..<50: return 0.10
+        case 50..<70: return 0.04
+        case 70..<90: return 0.015
+        default: return 0.004
+        }
+    }
+
+    private func socialScenario(
+        kind: SocialEventKind,
+        actor: String,
+        actorLabel: String,
+        target: String?,
+        stage: LifeStage
+    ) -> (title: String, message: String, accept: String, decline: String, log: String) {
+        let targetName = target ?? "someone else"
+        switch kind {
+        case .hangoutInvite:
+            let scenarios = [
+                ("Arcade invite", "\(actor) wants you to sneak extra time at the arcade after school.", "Go To Arcade", "Head Home", "\(actor) invited you to the arcade."),
+                ("Late cinema plan", "\(actor) found a way into a late movie and wants you to come along.", "See The Movie", "Skip It", "\(actor) tried to pull you into a late movie."),
+                ("Park meetup", "\(actor) wants to meet at the park and talk about everything going on.", "Meet Up", "Stay Home", "\(actor) asked you to meet at the park."),
+                ("Pickup game", "\(actor) wants you on their side for a rough pickup game.", "Play", "Sit Out", "\(actor) invited you to a pickup game."),
+                ("Study pact", "\(actor) wants to study together before a big test.", "Study Together", "Study Alone", "\(actor) asked you to study together.")
+            ]
+            return scenarios.randomElement()!
+        case .riskyScheme:
+            let scenarios = [
+                ("Closed cinema break-in", "\(actor) wants to sneak into the closed cinema after hours and look around.", "Sneak In", "Walk Away", "\(actor) pitched sneaking into the closed cinema."),
+                ("Shoplift challenge", "\(actor) dares you to steal headphones from a corner shop.", "Take The Dare", "Refuse Dare", "\(actor) dared you to shoplift."),
+                ("Rooftop shortcut", "\(actor) says the fastest way across town is over an abandoned rooftop.", "Climb Up", "Use The Street", "\(actor) wanted to cross an abandoned rooftop."),
+                ("Fake ticket scam", "\(actor) wants to sell fake concert tickets outside the station.", "Join Scam", "Say No", "\(actor) suggested a fake ticket scam."),
+                ("Joyride offer", "\(actor) has keys to a car that is definitely not theirs.", "Get In", "Leave", "\(actor) offered you a joyride.")
+            ]
+            return scenarios.randomElement()!
+        case .coverStory:
+            let scenarios = [
+                ("Broken window lie", "\(actor) broke a window and wants you to tell \(targetName) it was an accident you caused.", "Take Blame", "Refuse", "\(actor) wanted you to cover for a broken window."),
+                ("Missed curfew cover", "\(actor) missed curfew and wants you to say they were with you.", "Cover Curfew", "Tell No Lie", "\(actor) needed a curfew cover story."),
+                ("Skipped shift excuse", "\(actor) skipped something important and wants you to make up an excuse to \(targetName).", "Make Excuse", "Stay Honest", "\(actor) asked for a fake excuse."),
+                ("Secret relationship", "\(actor) is hiding a secret relationship and wants you to lie to \(targetName).", "Keep Secret", "Refuse", "\(actor) asked you to hide a relationship."),
+                ("Stolen snack blame", "\(actor) took snacks from home and wants you to blame \(targetName).", "Shift Blame", "No Way", "\(actor) tried to get you into a snack theft lie.")
+            ]
+            return scenarios.randomElement()!
+        case .fightBackup:
+            let scenarios = [
+                ("Bus stop confrontation", "\(actor) wants you beside them when they confront \(targetName) at the bus stop.", "Stand With Them", "Stay Away", "\(actor) wanted backup at the bus stop."),
+                ("Behind-gym fight", "\(actor) says \(targetName) will be behind the gym and wants you there.", "Show Up", "Avoid It", "\(actor) asked you into a behind-gym fight."),
+                ("Skate park beef", "\(actor) got into trouble at the skate park and wants you to help settle it.", "Back Them", "Keep Out", "\(actor) pulled you toward skate park drama."),
+                ("Party argument", "\(actor) wants you to help face \(targetName) after a party argument.", "Go With Them", "Stay Home", "\(actor) asked for help after a party argument."),
+                ("Sibling feud", "\(actor) wants you to help intimidate \(targetName) during a family feud.", "Get Involved", "Refuse", "\(actor) tried to drag you into a family feud.")
+            ]
+            return scenarios.randomElement()!
+        case .familyEmergency:
+            return (
+                "\(actor) needs urgent help",
+                "Your \(actorLabel.lowercased()), \(actor), needs help with a sudden bill and asks you directly.",
+                "Help Them",
+                "Say No",
+                "\(actor) asked for urgent family help."
+            )
+        case .moneyRequest:
+            return (
+                "\(actor) asks for cash",
+                "\(actor) says they are short on money and asks you for a loan.",
+                "Give Cash",
+                "Say No",
+                "\(actor) asked to borrow money."
+            )
+        case .gangRecruitment, .jobOffer:
+            // Built directly in handleRelationshipEvents with a stranger
+            // actor — never routed through this family/friend scenario bank.
+            return ("", "", "", "", "")
+        }
+    }
+
+    private func handleRelationshipEvents(_ character: inout Character, log: inout [LogEntry]) {
+        guard character.stage != .infant else { return }
+        handlePassiveRelationshipEvent(&character, log: &log)
+
+        // A stranger with a job lead or a gang pitch — rarer than the usual
+        // family/friend drama, and never from someone already in your life.
+        if character.stage != .child, pendingSocialEvent == nil, Double.random(in: 0...1) < 0.14 {
+            let region = CountryData.profile(for: character.country).region
+            let gender: Gender = Bool.random() ? .male : .female
+            let strangerName = "\(NameData.randomFirstName(for: gender, region: region)) \(NameData.randomLastName(region: region))"
+            let offerGang = character.gangName == nil && Bool.random()
+            if offerGang {
+                pendingSocialEvent = SocialEvent(
+                    kind: .gangRecruitment,
+                    actorRef: .stranger,
+                    actorName: strangerName,
+                    actorLabel: "Recruiter",
+                    actorGender: gender,
+                    targetRef: nil,
+                    targetName: nil,
+                    amount: 0
+                )
+                log.append(LogEntry(text: "\(strangerName) has been talking to you about \"joining the family.\"", isAlert: true))
+            } else {
+                pendingSocialEvent = SocialEvent(
+                    kind: .jobOffer,
+                    actorRef: .stranger,
+                    actorName: strangerName,
+                    actorLabel: "Contact",
+                    actorGender: gender,
+                    targetRef: nil,
+                    targetName: nil,
+                    amount: 0
+                )
+                log.append(LogEntry(text: "\(strangerName) says they might have work for you.", isAlert: false))
+            }
+            return
+        }
+
+        guard pendingSocialEvent == nil, Double.random(in: 0...1) < 0.42 else { return }
+
+        let familyPeople = character.family
+            .filter(\.isAlive)
+            .map { (ref: PersonRef.family($0.id), name: $0.name, label: $0.relation.rawValue, isFamily: true, volatility: 10, gender: $0.gender) }
+        let friendPeople = character.friends
+            .map { (ref: PersonRef.friend($0.id), name: $0.name, label: "Friend", isFamily: false, volatility: $0.volatility, gender: $0.gender) }
+        let people = familyPeople + friendPeople
+        guard let actor = people.randomElement() else { return }
+
+        let relationship = relationshipValue(character, ref: actor.ref)
+        let roll = Double.random(in: 0...1)
+        if character.stage == .child {
+            let target = people.filter { $0.ref != actor.ref }.randomElement()
+            let kind: SocialEventKind = roll < 0.72 ? .hangoutInvite : .coverStory
+            let scenario = socialScenario(kind: kind, actor: actor.name, actorLabel: actor.label, target: target?.name, stage: character.stage)
+            pendingSocialEvent = SocialEvent(
+                kind: kind,
+                actorRef: actor.ref,
+                actorName: actor.name,
+                actorLabel: actor.label,
+                actorGender: actor.gender,
+                targetRef: target?.ref,
+                targetName: target?.name,
+                amount: 0,
+                customTitle: scenario.title,
+                customMessage: scenario.message,
+                customAcceptTitle: scenario.accept,
+                customDeclineTitle: scenario.decline
+            )
+            log.append(LogEntry(text: scenario.log, isAlert: false))
+            return
+        }
+
+        if actor.isFamily && roll < 0.25 {
+            let amount = localized(Int.random(in: 20...90), for: character)
+            let scenario = socialScenario(kind: .familyEmergency, actor: actor.name, actorLabel: actor.label, target: nil, stage: character.stage)
+            pendingSocialEvent = SocialEvent(
+                kind: .familyEmergency,
+                actorRef: actor.ref,
+                actorName: actor.name,
+                actorLabel: actor.label,
+                actorGender: actor.gender,
+                targetRef: nil,
+                targetName: nil,
+                amount: amount,
+                customTitle: scenario.title,
+                customMessage: "\(scenario.message) They need $\(amount).",
+                customAcceptTitle: "Give $\(amount)",
+                customDeclineTitle: scenario.decline
+            )
+            log.append(LogEntry(text: scenario.log, isAlert: true))
+        } else if roll < 0.40 {
+            let amount = localized(Int.random(in: 10...55), for: character)
+            let scenario = socialScenario(kind: .moneyRequest, actor: actor.name, actorLabel: actor.label, target: nil, stage: character.stage)
+            pendingSocialEvent = SocialEvent(
+                kind: .moneyRequest,
+                actorRef: actor.ref,
+                actorName: actor.name,
+                actorLabel: actor.label,
+                actorGender: actor.gender,
+                targetRef: nil,
+                targetName: nil,
+                amount: amount,
+                customTitle: scenario.title,
+                customMessage: "\(scenario.message) They want $\(amount).",
+                customAcceptTitle: "Give $\(amount)",
+                customDeclineTitle: scenario.decline
+            )
+            log.append(LogEntry(text: "\(scenario.log) ($\(amount))", isAlert: relationship < 35))
+        } else if !actor.isFamily && (roll < 0.62 || actor.volatility > 78) {
+            let kind: SocialEventKind = actor.volatility > 58 && Double.random(in: 0...1) < 0.62 ? .riskyScheme : .hangoutInvite
+            let scenario = socialScenario(kind: kind, actor: actor.name, actorLabel: actor.label, target: nil, stage: character.stage)
+            pendingSocialEvent = SocialEvent(
+                kind: kind,
+                actorRef: actor.ref,
+                actorName: actor.name,
+                actorLabel: actor.label,
+                actorGender: actor.gender,
+                targetRef: nil,
+                targetName: nil,
+                amount: 0,
+                customTitle: scenario.title,
+                customMessage: scenario.message,
+                customAcceptTitle: scenario.accept,
+                customDeclineTitle: scenario.decline
+            )
+            log.append(LogEntry(text: scenario.log, isAlert: actor.volatility > 75))
+        } else if roll < 0.78 {
+            let possibleTargets = people.filter { $0.ref != actor.ref }
+            let target = possibleTargets.randomElement()
+            let scenario = socialScenario(kind: .coverStory, actor: actor.name, actorLabel: actor.label, target: target?.name, stage: character.stage)
+            pendingSocialEvent = SocialEvent(
+                kind: .coverStory,
+                actorRef: actor.ref,
+                actorName: actor.name,
+                actorLabel: actor.label,
+                actorGender: actor.gender,
+                targetRef: target?.ref,
+                targetName: target?.name,
+                amount: 0,
+                customTitle: scenario.title,
+                customMessage: scenario.message,
+                customAcceptTitle: scenario.accept,
+                customDeclineTitle: scenario.decline
+            )
+            log.append(LogEntry(text: scenario.log, isAlert: true))
+        } else if character.stage != .child {
+            let possibleTargets = people.filter { $0.ref != actor.ref }
+            let target = possibleTargets.randomElement()
+            let scenario = socialScenario(kind: .fightBackup, actor: actor.name, actorLabel: actor.label, target: target?.name, stage: character.stage)
+            pendingSocialEvent = SocialEvent(
+                kind: .fightBackup,
+                actorRef: actor.ref,
+                actorName: actor.name,
+                actorLabel: actor.label,
+                actorGender: actor.gender,
+                targetRef: target?.ref,
+                targetName: target?.name,
+                amount: 0,
+                customTitle: scenario.title,
+                customMessage: scenario.message,
+                customAcceptTitle: scenario.accept,
+                customDeclineTitle: scenario.decline
+            )
+            log.append(LogEntry(text: scenario.log, isAlert: true))
+        }
+    }
+
+    private func handlePassiveRelationshipEvent(_ character: inout Character, log: inout [LogEntry]) {
+        guard Double.random(in: 0...1) < 0.35 else { return }
+
+        if let family = character.family.filter(\.isAlive).randomElement(),
+           family.relationship >= 70,
+           Double.random(in: 0...1) < 0.45 {
+            let amount = localized(Int.random(in: 10...45), for: character)
+            character.cash += amount
+            log.append(LogEntry(text: "\(family.name) surprised you with $\(amount) because you've been close lately.", isAlert: false))
+            return
+        }
+
+        if let friend = character.friends.randomElement(),
+           friend.relationship >= 75,
+           character.friends.count < 6,
+           Double.random(in: 0...1) < 0.40 {
+            let gender: Gender = Bool.random() ? .male : .female
+            let region = CountryData.profile(for: character.country).region
+            let name = "\(NameData.randomFirstName(for: gender, region: region)) \(NameData.randomLastName(region: region))"
+            character.friends.append(Friend(name: name, gender: gender, relationship: Int.random(in: 35...60)))
+            log.append(LogEntry(text: "\(friend.name) introduced you to \(name), and you became friends.", isAlert: false))
+            return
+        }
+
+        if let friend = character.friends.randomElement(),
+           friend.relationship < 35,
+           Double.random(in: 0...1) < 0.55 {
+            let loss = Int.random(in: 4...12)
+            if let index = character.friends.firstIndex(where: { $0.id == friend.id }) {
+                character.friends[index].adjustRelationship(-loss)
+            }
+            character.stats.adjust(happiness: -Int.random(in: 1...4))
+            log.append(LogEntry(text: "\(friend.name) spread an ugly rumor about you. Relationship -\(loss).", isAlert: true))
+            return
+        }
+
+        if let family = character.family.filter(\.isAlive).randomElement(),
+           family.relationship < 40 {
+            let loss = Int.random(in: 4...10)
+            if let index = character.family.firstIndex(where: { $0.id == family.id }) {
+                character.family[index].adjustRelationship(-loss)
+            }
+            log.append(LogEntry(text: "Tension with \(family.name) got worse after a family argument. Relationship -\(loss).", isAlert: true))
         }
     }
 
@@ -511,6 +1612,7 @@ final class GameViewModel: ObservableObject {
     }
 
     private func checkForDeath(_ character: inout Character, log: inout [LogEntry]) {
+        guard character.isAlive else { return }
         if character.stats.health <= 0 {
             if Double.random(in: 0...1) < 0.7 {
                 character.stats.adjust(health: Int.random(in: 12...25))
@@ -546,7 +1648,12 @@ final class GameViewModel: ObservableObject {
     /// Ties the cause of death to what was actually afflicting the character
     /// rather than a random flavor string, so the ending reflects the run.
     private func determineCauseOfDeath(_ character: Character) -> String {
-        let conditionNames = character.conditions.compactMap { ConditionData.byID[$0.conditionID]?.name }
+        // Vision correction isn't a medical condition that kills anyone — it
+        // just means glasses are needed — so it never shows up as a cause.
+        let conditionNames = character.conditions.compactMap { active -> String? in
+            guard let condition = ConditionData.byID[active.conditionID], !condition.requiresGlasses else { return nil }
+            return condition.name
+        }
         switch conditionNames.count {
         case 0:
             return EventData.deathCauses.randomElement() ?? "natural causes"

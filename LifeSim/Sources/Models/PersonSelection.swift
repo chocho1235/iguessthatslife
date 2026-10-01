@@ -8,6 +8,7 @@ struct PersonSelection: Identifiable {
     let isAlive: Bool
     let relationship: Int
     let label: String
+    var country: String? = nil
 
     var id: PersonRef { ref }
 }

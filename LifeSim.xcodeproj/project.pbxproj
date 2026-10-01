@@ -8,23 +8,35 @@
 
 /* Begin PBXBuildFile section */
 		042764148780EDB7812B140A /* FamilyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF2281C177FDA4FF11918D7 /* FamilyView.swift */; };
+		0C133A95F3225139428AEB9D /* Outfit.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBEBD53A5E34A5282F14B679 /* Outfit.swift */; };
 		103AA3AAE0F5FDCDFCE3A27B /* Stats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A49299338383F60CA568A57C /* Stats.swift */; };
 		1AE2B246FF197D098A0772DB /* DoctorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73E3DC4D1111914759521099 /* DoctorView.swift */; };
 		1C2C1D233554E451A7AEF3BA /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F08BF4B0A45BCA4473598635 /* GameViewModel.swift */; };
+		1F5970999F0070B306BB30B9 /* ActivitiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 807DCA62E9F38259208D3AE0 /* ActivitiesView.swift */; };
+		1FC68FD18E4B0FA767D1C025 /* WeaponShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E72C831FF36892091044DD2 /* WeaponShopView.swift */; };
+		208827C7F0942F487B3A0176 /* LegalTrouble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD94A2F79CA75B58918F92B /* LegalTrouble.swift */; };
 		3395742C5A06F58508BC69FD /* JobInterview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B3B5598D9FB537170EECCB8 /* JobInterview.swift */; };
 		3B02074A4EF89452895BD106 /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DA1A1934142FDB6BBCCAEE /* LogEntry.swift */; };
 		405BBFB49544E3B18CB1B0D6 /* NameData.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFEB3818BD33EF7DF82DD27A /* NameData.swift */; };
 		4247ACA03B44F276C3CA9280 /* Character.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0604CEEB7A19A40A8B1E9AF /* Character.swift */; };
 		43BCB1110403CDAFF4909423 /* Condition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3A59BA78E371DC573EC3F2 /* Condition.swift */; };
+		4A706FA6D3272057B676EC6C /* WeaponData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D83236157BCC115DC46FAE /* WeaponData.swift */; };
 		4CAD48B416CA854D474432D5 /* InterviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47B50931C61679879909248 /* InterviewData.swift */; };
 		5087D6412618F86ED0C1C9D8 /* GameOverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA2095FE328DFF72A52D243 /* GameOverView.swift */; };
 		5581C48A30CD092B739EA224 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33EF9AA39DF2EC37996EEC0 /* Friend.swift */; };
 		562CDB1EDBF645C1A64C6E98 /* JobApplicationOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DEFAF6204EFC1CF0D95D074 /* JobApplicationOutcome.swift */; };
+		5CEC6E8F6807375097BAF0BF /* ClothingShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F69A444E9462F43EB959B677 /* ClothingShopView.swift */; };
 		63081AC133304F33513C3AAD /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C4F4296CE4C980B78D63DE /* GameView.swift */; };
+		63604B039D2993DAA6104352 /* OutfitData.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB022AE9403EDAFB821D086D /* OutfitData.swift */; };
+		69024174CE7E198941038A62 /* MigrationMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F57A1DD274D4CAED42DFCA /* MigrationMapView.swift */; };
+		6A0CBE04805D8B2C1E9FAB6E /* MigrationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8112D53C5F44450762DF98E1 /* MigrationData.swift */; };
 		705649F38A888B8C021974C8 /* DoctorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD3A2329ACF91CC73D6AE33 /* DoctorService.swift */; };
+		747B66D3D44B388078DB910B /* Activity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA825208807E9B9A0B9663D2 /* Activity.swift */; };
+		750DCFB2CAB3FE36323936F9 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9CCC7D842C58779D8EA5B /* SoundManager.swift */; };
 		75EBDBAD47139F748B6D8074 /* LifeSimApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498BFF093C120E69B110D613 /* LifeSimApp.swift */; };
 		7788172E7288C191AA04468E /* LifeStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 623282954906BA7846CE57D8 /* LifeStage.swift */; };
 		78194782D67D09BEC9EA698B /* Job.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D85EF3919035C3E00339BE /* Job.swift */; };
+		796328A154470738DF651A05 /* ShopHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66AC5D8E6F50F35CF3264A33 /* ShopHubView.swift */; };
 		7EB91FCEEE66CE0137BC7893 /* CountryData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40FDAE12002D18E1023C53F /* CountryData.swift */; };
 		7F64C49B4253A9EB84794BAE /* PersonSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78F873C48EFB76F65BD21612 /* PersonSelection.swift */; };
 		813EF8C7B331C16C5FF2B703 /* FamilyMember.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED6AAECC5CAE2459C65409C /* FamilyMember.swift */; };
@@ -32,18 +44,24 @@
 		867C30143DEA6C06AFD594FF /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38288ABAC88A035D57BEF508 /* ShopView.swift */; };
 		8CBAA720C5C06650266730C9 /* StartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018C2097B1E6E0D3255A3753 /* StartView.swift */; };
 		975820D6854185B9B9D58898 /* JobData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D101AC5AC8FB0BE993EE8D7D /* JobData.swift */; };
+		9DE06E1AA76AC7E845BCB78D /* CultureRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B94748765106B6478DE17C /* CultureRegion.swift */; };
 		9F923B2C45BA402F3D2FEBFD /* CheckupCutsceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E85E543CB1F0D833B1E3AE4 /* CheckupCutsceneView.swift */; };
 		AF0915785488327A829E5D57 /* Accessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5418A06147AECE762D53415A /* Accessory.swift */; };
 		B2A85308AB72B5622FC835F8 /* PersonDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAFAA6748BD5B24E4CDBE78 /* PersonDetailView.swift */; };
+		B595ACD02E372299A81F9D5B /* MigrationQuizView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0E4DE72C3AB269C72E314B /* MigrationQuizView.swift */; };
 		B5FEDC8269674D94F4A300B0 /* CheckupOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 314E4F47907ED17B31F664A5 /* CheckupOutcome.swift */; };
 		BC69B176B990AB99B41C29DB /* LifeEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBFB5CA3026FDF725487F624 /* LifeEvent.swift */; };
 		C4D50223AC587DC40587996C /* JobApplicationCutsceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B6007B7A2904594915715D /* JobApplicationCutsceneView.swift */; };
+		CBE5B375FC9BB0D7AB1A59FD /* Weapon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */; };
+		D4033146C8AEDDE24B0ECFCD /* Robbery.swift in Sources */ = {isa = PBXBuildFile; fileRef = B603302A0DE0BDD25696C152 /* Robbery.swift */; };
 		D5EBD3AB73455DE2FA3FF2A1 /* EventData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B021CAC2A7011A87C852FA2 /* EventData.swift */; };
+		E95250185C48203AEEF9B891 /* LegalTroubleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CC12F6CC7A62B7E627B090 /* LegalTroubleView.swift */; };
 		EC0657B153DD4F722A6C9072 /* EducationLevel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A085026D4DA3A717DFC724EB /* EducationLevel.swift */; };
 		EE5939653A5FA5C8F47D4889 /* AccessoryData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C211054F99E197CE039633DE /* AccessoryData.swift */; };
 		EE8B714843CEF3D3EA9A14AE /* StatBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3FACFF17D809F9B72BDB93 /* StatBarView.swift */; };
 		EF8B7F7EF13EFC0B3DED8629 /* CareerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D56163B56029529903DBB343 /* CareerView.swift */; };
 		F53CF4B29DAEE3CCC006ADE8 /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD69493512F2F06C8F09C99 /* AvatarView.swift */; };
+		F837BB380B3FAC91EE4CF9A7 /* Migration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B79D71F66A812C413B6530EC /* Migration.swift */; };
 		FAEABCB27C4F21B90E740C94 /* FriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC0FF1237A03EE47BD04F4A /* FriendsView.swift */; };
 		FBEEB9AD753A8C9B9B42BE7B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A55CDC31927EE00AFF86E25 /* ContentView.swift */; };
 /* End PBXBuildFile section */
@@ -51,6 +69,8 @@
 /* Begin PBXFileReference section */
 		018C2097B1E6E0D3255A3753 /* StartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartView.swift; sourceTree = "<group>"; };
 		0B3B5598D9FB537170EECCB8 /* JobInterview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobInterview.swift; sourceTree = "<group>"; };
+		17B94748765106B6478DE17C /* CultureRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CultureRegion.swift; sourceTree = "<group>"; };
+		19CC12F6CC7A62B7E627B090 /* LegalTroubleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalTroubleView.swift; sourceTree = "<group>"; };
 		19DA1A1934142FDB6BBCCAEE /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
 		2D3A59BA78E371DC573EC3F2 /* Condition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Condition.swift; sourceTree = "<group>"; };
 		2DEFAF6204EFC1CF0D95D074 /* JobApplicationOutcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobApplicationOutcome.swift; sourceTree = "<group>"; };
@@ -64,22 +84,35 @@
 		5FA2095FE328DFF72A52D243 /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
 		5FC0FF1237A03EE47BD04F4A /* FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsView.swift; sourceTree = "<group>"; };
 		623282954906BA7846CE57D8 /* LifeStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeStage.swift; sourceTree = "<group>"; };
+		66AC5D8E6F50F35CF3264A33 /* ShopHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopHubView.swift; sourceTree = "<group>"; };
 		6BAFAA6748BD5B24E4CDBE78 /* PersonDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonDetailView.swift; sourceTree = "<group>"; };
+		6CE9CCC7D842C58779D8EA5B /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
 		6FD3A2329ACF91CC73D6AE33 /* DoctorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoctorService.swift; sourceTree = "<group>"; };
 		73E3DC4D1111914759521099 /* DoctorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoctorView.swift; sourceTree = "<group>"; };
 		76D85EF3919035C3E00339BE /* Job.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Job.swift; sourceTree = "<group>"; };
 		78F873C48EFB76F65BD21612 /* PersonSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonSelection.swift; sourceTree = "<group>"; };
+		7DD94A2F79CA75B58918F92B /* LegalTrouble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalTrouble.swift; sourceTree = "<group>"; };
+		7E72C831FF36892091044DD2 /* WeaponShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeaponShopView.swift; sourceTree = "<group>"; };
+		807DCA62E9F38259208D3AE0 /* ActivitiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitiesView.swift; sourceTree = "<group>"; };
+		8112D53C5F44450762DF98E1 /* MigrationData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationData.swift; sourceTree = "<group>"; };
 		8E85E543CB1F0D833B1E3AE4 /* CheckupCutsceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckupCutsceneView.swift; sourceTree = "<group>"; };
+		92F57A1DD274D4CAED42DFCA /* MigrationMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationMapView.swift; sourceTree = "<group>"; };
 		9A55CDC31927EE00AFF86E25 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		9FD69493512F2F06C8F09C99 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
 		A085026D4DA3A717DFC724EB /* EducationLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EducationLevel.swift; sourceTree = "<group>"; };
 		A30913FFD322B94B2D14EABF /* LifeSim.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LifeSim.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A49299338383F60CA568A57C /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
+		A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Weapon.swift; sourceTree = "<group>"; };
 		AA3FACFF17D809F9B72BDB93 /* StatBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatBarView.swift; sourceTree = "<group>"; };
 		B47B50931C61679879909248 /* InterviewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterviewData.swift; sourceTree = "<group>"; };
+		B603302A0DE0BDD25696C152 /* Robbery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Robbery.swift; sourceTree = "<group>"; };
+		B79D71F66A812C413B6530EC /* Migration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Migration.swift; sourceTree = "<group>"; };
+		BA825208807E9B9A0B9663D2 /* Activity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Activity.swift; sourceTree = "<group>"; };
 		BBFB5CA3026FDF725487F624 /* LifeEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeEvent.swift; sourceTree = "<group>"; };
 		BEF2281C177FDA4FF11918D7 /* FamilyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyView.swift; sourceTree = "<group>"; };
+		C1D83236157BCC115DC46FAE /* WeaponData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeaponData.swift; sourceTree = "<group>"; };
 		C211054F99E197CE039633DE /* AccessoryData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessoryData.swift; sourceTree = "<group>"; };
+		CB022AE9403EDAFB821D086D /* OutfitData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutfitData.swift; sourceTree = "<group>"; };
 		CED6AAECC5CAE2459C65409C /* FamilyMember.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMember.swift; sourceTree = "<group>"; };
 		D0604CEEB7A19A40A8B1E9AF /* Character.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Character.swift; sourceTree = "<group>"; };
 		D101AC5AC8FB0BE993EE8D7D /* JobData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobData.swift; sourceTree = "<group>"; };
@@ -88,7 +121,10 @@
 		DFEB3818BD33EF7DF82DD27A /* NameData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NameData.swift; sourceTree = "<group>"; };
 		E33EF9AA39DF2EC37996EEC0 /* Friend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Friend.swift; sourceTree = "<group>"; };
 		E4B6007B7A2904594915715D /* JobApplicationCutsceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobApplicationCutsceneView.swift; sourceTree = "<group>"; };
+		EE0E4DE72C3AB269C72E314B /* MigrationQuizView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationQuizView.swift; sourceTree = "<group>"; };
 		F08BF4B0A45BCA4473598635 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
+		F69A444E9462F43EB959B677 /* ClothingShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClothingShopView.swift; sourceTree = "<group>"; };
+		FBEBD53A5E34A5282F14B679 /* Outfit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Outfit.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -112,9 +148,11 @@
 			isa = PBXGroup;
 			children = (
 				5418A06147AECE762D53415A /* Accessory.swift */,
+				BA825208807E9B9A0B9663D2 /* Activity.swift */,
 				D0604CEEB7A19A40A8B1E9AF /* Character.swift */,
 				314E4F47907ED17B31F664A5 /* CheckupOutcome.swift */,
 				2D3A59BA78E371DC573EC3F2 /* Condition.swift */,
+				17B94748765106B6478DE17C /* CultureRegion.swift */,
 				6FD3A2329ACF91CC73D6AE33 /* DoctorService.swift */,
 				A085026D4DA3A717DFC724EB /* EducationLevel.swift */,
 				CED6AAECC5CAE2459C65409C /* FamilyMember.swift */,
@@ -122,19 +160,33 @@
 				76D85EF3919035C3E00339BE /* Job.swift */,
 				2DEFAF6204EFC1CF0D95D074 /* JobApplicationOutcome.swift */,
 				0B3B5598D9FB537170EECCB8 /* JobInterview.swift */,
+				7DD94A2F79CA75B58918F92B /* LegalTrouble.swift */,
 				BBFB5CA3026FDF725487F624 /* LifeEvent.swift */,
 				623282954906BA7846CE57D8 /* LifeStage.swift */,
 				19DA1A1934142FDB6BBCCAEE /* LogEntry.swift */,
+				B79D71F66A812C413B6530EC /* Migration.swift */,
+				FBEBD53A5E34A5282F14B679 /* Outfit.swift */,
 				78F873C48EFB76F65BD21612 /* PersonSelection.swift */,
+				B603302A0DE0BDD25696C152 /* Robbery.swift */,
 				A49299338383F60CA568A57C /* Stats.swift */,
+				A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		59719BAFB4EBB283CE00FF6B /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				6CE9CCC7D842C58779D8EA5B /* SoundManager.swift */,
+			);
+			path = Audio;
 			sourceTree = "<group>";
 		};
 		73D166D464968CADB5EDD41E /* Sources */ = {
 			isa = PBXGroup;
 			children = (
 				498BFF093C120E69B110D613 /* LifeSimApp.swift */,
+				59719BAFB4EBB283CE00FF6B /* Audio */,
 				F28BBAFBD519C4B21295CA12 /* Data */,
 				4FB80EDD830556C61F4CB3F4 /* Models */,
 				425C011D72C25595D3A93E73 /* ViewModels */,
@@ -155,9 +207,11 @@
 		DF06AA5882029A72AD721443 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				807DCA62E9F38259208D3AE0 /* ActivitiesView.swift */,
 				9FD69493512F2F06C8F09C99 /* AvatarView.swift */,
 				D56163B56029529903DBB343 /* CareerView.swift */,
 				8E85E543CB1F0D833B1E3AE4 /* CheckupCutsceneView.swift */,
+				F69A444E9462F43EB959B677 /* ClothingShopView.swift */,
 				9A55CDC31927EE00AFF86E25 /* ContentView.swift */,
 				73E3DC4D1111914759521099 /* DoctorView.swift */,
 				BEF2281C177FDA4FF11918D7 /* FamilyView.swift */,
@@ -165,11 +219,16 @@
 				5FA2095FE328DFF72A52D243 /* GameOverView.swift */,
 				53C4F4296CE4C980B78D63DE /* GameView.swift */,
 				E4B6007B7A2904594915715D /* JobApplicationCutsceneView.swift */,
+				19CC12F6CC7A62B7E627B090 /* LegalTroubleView.swift */,
+				92F57A1DD274D4CAED42DFCA /* MigrationMapView.swift */,
+				EE0E4DE72C3AB269C72E314B /* MigrationQuizView.swift */,
 				6BAFAA6748BD5B24E4CDBE78 /* PersonDetailView.swift */,
+				66AC5D8E6F50F35CF3264A33 /* ShopHubView.swift */,
 				38288ABAC88A035D57BEF508 /* ShopView.swift */,
 				5A87B6C91687DA5A6DC37915 /* SpeechBubble.swift */,
 				018C2097B1E6E0D3255A3753 /* StartView.swift */,
 				AA3FACFF17D809F9B72BDB93 /* StatBarView.swift */,
+				7E72C831FF36892091044DD2 /* WeaponShopView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -182,7 +241,10 @@
 				4B021CAC2A7011A87C852FA2 /* EventData.swift */,
 				B47B50931C61679879909248 /* InterviewData.swift */,
 				D101AC5AC8FB0BE993EE8D7D /* JobData.swift */,
+				8112D53C5F44450762DF98E1 /* MigrationData.swift */,
 				DFEB3818BD33EF7DF82DD27A /* NameData.swift */,
+				CB022AE9403EDAFB821D086D /* OutfitData.swift */,
+				C1D83236157BCC115DC46FAE /* WeaponData.swift */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -248,14 +310,18 @@
 			files = (
 				AF0915785488327A829E5D57 /* Accessory.swift in Sources */,
 				EE5939653A5FA5C8F47D4889 /* AccessoryData.swift in Sources */,
+				1F5970999F0070B306BB30B9 /* ActivitiesView.swift in Sources */,
+				747B66D3D44B388078DB910B /* Activity.swift in Sources */,
 				F53CF4B29DAEE3CCC006ADE8 /* AvatarView.swift in Sources */,
 				EF8B7F7EF13EFC0B3DED8629 /* CareerView.swift in Sources */,
 				4247ACA03B44F276C3CA9280 /* Character.swift in Sources */,
 				9F923B2C45BA402F3D2FEBFD /* CheckupCutsceneView.swift in Sources */,
 				B5FEDC8269674D94F4A300B0 /* CheckupOutcome.swift in Sources */,
+				5CEC6E8F6807375097BAF0BF /* ClothingShopView.swift in Sources */,
 				43BCB1110403CDAFF4909423 /* Condition.swift in Sources */,
 				FBEEB9AD753A8C9B9B42BE7B /* ContentView.swift in Sources */,
 				7EB91FCEEE66CE0137BC7893 /* CountryData.swift in Sources */,
+				9DE06E1AA76AC7E845BCB78D /* CultureRegion.swift in Sources */,
 				705649F38A888B8C021974C8 /* DoctorService.swift in Sources */,
 				1AE2B246FF197D098A0772DB /* DoctorView.swift in Sources */,
 				EC0657B153DD4F722A6C9072 /* EducationLevel.swift in Sources */,
@@ -273,18 +339,32 @@
 				562CDB1EDBF645C1A64C6E98 /* JobApplicationOutcome.swift in Sources */,
 				975820D6854185B9B9D58898 /* JobData.swift in Sources */,
 				3395742C5A06F58508BC69FD /* JobInterview.swift in Sources */,
+				208827C7F0942F487B3A0176 /* LegalTrouble.swift in Sources */,
+				E95250185C48203AEEF9B891 /* LegalTroubleView.swift in Sources */,
 				BC69B176B990AB99B41C29DB /* LifeEvent.swift in Sources */,
 				75EBDBAD47139F748B6D8074 /* LifeSimApp.swift in Sources */,
 				7788172E7288C191AA04468E /* LifeStage.swift in Sources */,
 				3B02074A4EF89452895BD106 /* LogEntry.swift in Sources */,
+				F837BB380B3FAC91EE4CF9A7 /* Migration.swift in Sources */,
+				6A0CBE04805D8B2C1E9FAB6E /* MigrationData.swift in Sources */,
+				69024174CE7E198941038A62 /* MigrationMapView.swift in Sources */,
+				B595ACD02E372299A81F9D5B /* MigrationQuizView.swift in Sources */,
 				405BBFB49544E3B18CB1B0D6 /* NameData.swift in Sources */,
+				0C133A95F3225139428AEB9D /* Outfit.swift in Sources */,
+				63604B039D2993DAA6104352 /* OutfitData.swift in Sources */,
 				B2A85308AB72B5622FC835F8 /* PersonDetailView.swift in Sources */,
 				7F64C49B4253A9EB84794BAE /* PersonSelection.swift in Sources */,
+				D4033146C8AEDDE24B0ECFCD /* Robbery.swift in Sources */,
+				796328A154470738DF651A05 /* ShopHubView.swift in Sources */,
 				867C30143DEA6C06AFD594FF /* ShopView.swift in Sources */,
+				750DCFB2CAB3FE36323936F9 /* SoundManager.swift in Sources */,
 				858879BD15F5DEE3D3A3543A /* SpeechBubble.swift in Sources */,
 				8CBAA720C5C06650266730C9 /* StartView.swift in Sources */,
 				EE8B714843CEF3D3EA9A14AE /* StatBarView.swift in Sources */,
 				103AA3AAE0F5FDCDFCE3A27B /* Stats.swift in Sources */,
+				CBE5B375FC9BB0D7AB1A59FD /* Weapon.swift in Sources */,
+				4A706FA6D3272057B676EC6C /* WeaponData.swift in Sources */,
+				1FC68FD18E4B0FA767D1C025 /* WeaponShopView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -21,6 +21,8 @@ struct Character {
     var cash: Int = 0
     var ownedAccessoryIDs: Set<String> = []
     var equippedAccessoryIDs: [AccessorySlot: String] = [:]
+    var ownedOutfitIDs: Set<String> = ["basic_tee"]
+    var equippedOutfitID: String? = "basic_tee"
 
     var educationLevel: EducationLevel = .none
     var universityName: String?
@@ -30,11 +32,20 @@ struct Character {
     /// Permanent marks left by serious injuries or surgeries. Doesn't heal
     /// even after the underlying condition is treated. Capped visually.
     var scars: Int = 0
+    var gangName: String?
+    var weaponName: String?
+    var criminalRecord: Int = 0
+    /// How many robberies this character has attempted — the police get
+    /// better at catching up with you the more you push your luck.
+    var robberyCount: Int = 0
 
     var fullName: String { "\(firstName) \(lastName)" }
     var stage: LifeStage { LifeStage.forAge(age) }
     var equippedAccessories: [Accessory] {
         equippedAccessoryIDs.values.compactMap { AccessoryData.byID[$0] }
+    }
+    var equippedOutfit: Outfit? {
+        equippedOutfitID.flatMap { OutfitData.byID[$0] }
     }
     var isWearingCorrectiveGlasses: Bool {
         guard let faceID = equippedAccessoryIDs[.face] else { return false }

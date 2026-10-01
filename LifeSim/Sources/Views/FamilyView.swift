@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FamilyView: View {
     let family: [FamilyMember]
+    var country: String? = nil
     var onSelect: (PersonSelection) -> Void
 
     var body: some View {
@@ -18,12 +19,13 @@ struct FamilyView: View {
                             stage: member.avatarStage,
                             isAlive: member.isAlive,
                             relationship: member.relationship,
-                            label: member.relation.rawValue
+                            label: member.relation.rawValue,
+                            country: country
                         )
                     )
                 } label: {
                     HStack {
-                        AvatarView(seed: member.name, gender: member.gender, stage: member.avatarStage, isAlive: member.isAlive)
+                        AvatarView(seed: member.name, gender: member.gender, stage: member.avatarStage, country: country, isAlive: member.isAlive)
                             .frame(width: 40, height: 40)
                             .background(Color(.tertiarySystemBackground))
                             .clipShape(Circle())

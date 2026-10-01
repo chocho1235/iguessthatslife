@@ -78,7 +78,7 @@ struct CareerView: View {
                 }
 
                 Section("Available Jobs") {
-                    let jobs = JobData.available(stage: character.stage, educationLevel: character.educationLevel)
+                    let jobs = JobData.available(stage: character.stage, educationLevel: character.educationLevel, country: character.country)
                         .filter { $0.id != character.job?.id }
                     if jobs.isEmpty {
                         Text(character.stage == .child || character.stage == .infant
@@ -113,6 +113,7 @@ struct CareerView: View {
                     applicantSeed: character.fullName,
                     applicantGender: character.gender,
                     applicantStage: character.stage,
+                    applicantCountry: character.country,
                     applicantScars: character.scars
                 )
             }
