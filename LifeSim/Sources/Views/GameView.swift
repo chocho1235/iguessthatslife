@@ -10,6 +10,8 @@ struct GameView: View {
     @State private var showingCrime = false
     @State private var showingMigration = false
     @State private var showingActivities = false
+    @State private var jailFeedback: String?
+    @State private var showingJailResult = false
     @State private var selectedPerson: PersonSelection?
     @State private var showAttackFlash = false
 
@@ -98,6 +100,11 @@ struct GameView: View {
                 }
             )
         }
+        .sheet(item: $viewModel.pendingLegalTrouble) { trouble in
+            LegalTroubleView(trouble: trouble, cash: character.cash) { hireLawyer in
+                _ = viewModel.resolveLegalTrouble(hireLawyer: hireLawyer)
+            }
+        }
     }
 
     private var header: some View {
@@ -148,26 +155,62 @@ struct GameView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
+    @ViewBuilder
     private var actionBar: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-            dashboardButton("Shop", icon: "bag.fill", color: .blue) {
-                showingShop = true
+        if character.isInJail {
+            jailActionBar
+        } else {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                dashboardButton("Shop", icon: "bag.fill", color: .blue) {
+                    showingShop = true
+                }
+                dashboardButton("Doctor", icon: "stethoscope", color: .red) {
+                    showingDoctor = true
+                }
+                dashboardButton("Career", icon: "briefcase.fill", color: .green) {
+                    showingCareer = true
+                }
+                dashboardButton("Crime", icon: "exclamationmark.triangle.fill", color: .red) {
+                    showingCrime = true
+                }
+                dashboardButton("Migrate", icon: "airplane", color: .purple) {
+                    showingMigration = true
+                }
+                dashboardButton("Activities", icon: "star.fill", color: .orange) {
+                    showingActivities = true
+                }
             }
-            dashboardButton("Doctor", icon: "stethoscope", color: .red) {
-                showingDoctor = true
+        }
+    }
+
+    private var jailActionBar: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "lock.fill")
+                Text("IN PRISON — \(character.jailYearsRemaining) YEAR\(character.jailYearsRemaining == 1 ? "" : "S") LEFT")
+                    .font(.caption.bold())
+                Spacer()
             }
-            dashboardButton("Career", icon: "briefcase.fill", color: .green) {
-                showingCareer = true
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.red.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                dashboardButton("Doctor", icon: "stethoscope", color: .red) {
+                    showingDoctor = true
+                }
+                dashboardButton("Attempt Escape", icon: "figure.run", color: .orange) {
+                    jailFeedback = viewModel.attemptEscape()
+                    showingJailResult = true
+                }
             }
-            dashboardButton("Crime", icon: "exclamationmark.triangle.fill", color: .red) {
-                showingCrime = true
-            }
-            dashboardButton("Migrate", icon: "airplane", color: .purple) {
-                showingMigration = true
-            }
-            dashboardButton("Activities", icon: "star.fill", color: .orange) {
-                showingActivities = true
-            }
+        }
+        .alert("Jailbreak", isPresented: $showingJailResult) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(jailFeedback ?? "")
         }
     }
 
@@ -244,11 +287,11 @@ struct GameView: View {
         Button {
             withAnimation { viewModel.ageUp() }
         } label: {
-            Text(hasPendingDecision ? "Answer First" : "Age Up (+1 year)")
+            Text(hasPendingDecision ? "Answer First" : (character.isInJail ? "Serve Time (+1 year)" : "Age Up (+1 year)"))
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(hasPendingDecision ? Color.gray : Color.green)
+                .background(hasPendingDecision ? Color.gray : (character.isInJail ? Color.red : Color.green))
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
         }
@@ -1129,7 +1172,7 @@ private struct SocialEventDecisionView: View {
         switch event.kind {
         case .moneyRequest, .familyEmergency:
             return cash >= event.amount
-        case .fightBackup, .hangoutInvite, .riskyScheme, .coverStory, .gangRecruitment, .jobOffer:
+        case .fightBackup, .hangoutInvite, .riskyScheme, .coverStory, .gangRecruitment, .jobOffer, .gangHeist:
             return true
         }
     }
@@ -1205,6 +1248,7 @@ private struct SocialEventDecisionView: View {
         case .coverStory: return "theatermasks.fill"
         case .gangRecruitment: return "person.3.fill"
         case .jobOffer: return "briefcase.fill"
+        case .gangHeist: return "banknote.fill"
         }
     }
 
@@ -1217,6 +1261,7 @@ private struct SocialEventDecisionView: View {
         case .coverStory: return "bubble.left.and.bubble.right.fill"
         case .gangRecruitment: return "person.3.fill"
         case .jobOffer: return "briefcase.fill"
+        case .gangHeist: return "banknote.fill"
         }
     }
 
@@ -1230,6 +1275,7 @@ private struct SocialEventDecisionView: View {
         case .coverStory: return .indigo
         case .gangRecruitment: return .red
         case .jobOffer: return .green
+        case .gangHeist: return .red
         }
     }
 }

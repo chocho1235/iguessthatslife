@@ -52,13 +52,15 @@ struct LegalTroubleView: View {
                 } label: {
                     VStack(spacing: 2) {
                         Text("Take the Charge")
-                        Text("$\(min(cash, trouble.bailCost)) bail — record and weapon at risk")
+                        Text("$\(min(cash, trouble.bailCost)) bail · \(Int(trouble.convictionChanceWithoutLawyer * 100))% chance of \(trouble.jailYearsIfConvicted)-year sentence")
                             .font(.caption)
+                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
                 }
                 .buttonStyle(.bordered)
+                .tint(.red)
             }
 
             if !canAffordLawyer {
@@ -74,7 +76,7 @@ struct LegalTroubleView: View {
 
 #Preview {
     LegalTroubleView(
-        trouble: LegalTrouble(chargeDescription: "Armed Robbery", bailCost: 500, lawyerCost: 9000, confiscatesWeaponWithoutLawyer: true),
+        trouble: LegalTrouble(chargeDescription: "Armed Robbery", bailCost: 500, lawyerCost: 9000, confiscatesWeaponWithoutLawyer: true, jailYearsIfConvicted: 2, convictionChanceWithoutLawyer: 0.45),
         cash: 12000,
         onResolve: { _ in }
     )

@@ -36,6 +36,7 @@ enum SocialEventKind {
     case coverStory
     case gangRecruitment
     case jobOffer
+    case gangHeist
 }
 
 struct SocialEvent: Identifiable {
@@ -100,6 +101,8 @@ struct SocialEvent: Identifiable {
             return "\(actorName) wants you to join up"
         case .jobOffer:
             return "\(actorName) has a job for you"
+        case .gangHeist:
+            return "\(actorName) is planning a job"
         }
     }
 
@@ -124,6 +127,8 @@ struct SocialEvent: Identifiable {
             return "\(actorName) wants you in their crew. They don't take rejection well — saying no could get ugly."
         case .jobOffer:
             return "\(actorName) knows of an opening and thinks you'd be a good fit. No interview, no questions asked."
+        case .gangHeist:
+            return "\(actorName) wants you in on a bank job. Huge payout if it works — a long time behind bars if it doesn't."
         }
     }
 
@@ -144,6 +149,8 @@ struct SocialEvent: Identifiable {
             return "Join Up"
         case .jobOffer:
             return "Take the Job"
+        case .gangHeist:
+            return "I'm In"
         }
     }
 
@@ -164,6 +171,8 @@ struct SocialEvent: Identifiable {
             return "Refuse"
         case .jobOffer:
             return "Pass"
+        case .gangHeist:
+            return "Too Risky"
         }
     }
 }

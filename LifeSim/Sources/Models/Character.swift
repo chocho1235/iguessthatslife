@@ -38,9 +38,16 @@ struct Character {
     /// How many robberies this character has attempted — the police get
     /// better at catching up with you the more you push your luck.
     var robberyCount: Int = 0
+    /// Years left to serve — while this is above zero, ageUp() runs the
+    /// prison year track instead of ordinary civilian life.
+    var jailYearsRemaining: Int = 0
+    /// Set by a successful jailbreak. Never cleared automatically — it makes
+    /// the world a little more hostile for the rest of the character's life.
+    var isFugitive: Bool = false
 
     var fullName: String { "\(firstName) \(lastName)" }
     var stage: LifeStage { LifeStage.forAge(age) }
+    var isInJail: Bool { jailYearsRemaining > 0 }
     var equippedAccessories: [Accessory] {
         equippedAccessoryIDs.values.compactMap { AccessoryData.byID[$0] }
     }

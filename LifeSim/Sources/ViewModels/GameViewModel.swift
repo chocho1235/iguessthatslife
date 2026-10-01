@@ -68,6 +68,23 @@ final class GameViewModel: ObservableObject {
         guard pendingSocialEvent == nil, pendingLegalTrouble == nil, var current = character, current.isAlive else { return }
         current.age += 1
 
+        if current.isInJail {
+            var log: [LogEntry] = []
+            handleJailYear(&current, log: &log)
+            handleConditions(&current, log: &log)
+            applyNaturalDrift(&current)
+            checkForDeath(&current, log: &log)
+            character = current
+            yearLog = log
+            if !current.isAlive {
+                isGameOver = true
+                SoundManager.shared.play(.death)
+            } else {
+                SoundManager.shared.play(.ageUp)
+            }
+            return
+        }
+
         let stage = current.stage
         let eventCount = Int.random(in: 1...3)
         var log: [LogEntry] = []
@@ -153,6 +170,8 @@ final class GameViewModel: ObservableObject {
             result = resolveGangRecruitment(event, accepted: accepted, character: &current)
         case .jobOffer:
             result = resolveJobOffer(event, accepted: accepted, character: &current)
+        case .gangHeist:
+            result = resolveGangHeist(event, accepted: accepted, character: &current)
         }
 
         var log = yearLog
@@ -475,7 +494,8 @@ final class GameViewModel: ObservableObject {
         // The more robberies you've pulled and the longer your record, the
         // more likely a police squad is already closing in — independent of
         // whether this particular heist went smoothly.
-        let arrestChance = min(0.75, 0.04 + Double(current.robberyCount) * 0.035 + Double(current.criminalRecord) * 0.02)
+        let fugitiveBonus = current.isFugitive ? 0.15 : 0
+        let arrestChance = min(0.9, 0.04 + Double(current.robberyCount) * 0.035 + Double(current.criminalRecord) * 0.02 + fugitiveBonus)
         if Double.random(in: 0...1) < arrestChance {
             summary += " Moments later, a police squad caught up with you and placed you under arrest."
             let result = commitCrimeResult(current, text: summary, isAlert: true)
@@ -484,7 +504,9 @@ final class GameViewModel: ObservableObject {
                 chargeDescription: "Armed Robbery",
                 bailCost: localized(Int.random(in: 250...900), for: current),
                 lawyerCost: localized(Int.random(in: 6000...15000), for: current),
-                confiscatesWeaponWithoutLawyer: current.weaponName != nil
+                confiscatesWeaponWithoutLawyer: current.weaponName != nil,
+                jailYearsIfConvicted: Int.random(in: 1...3),
+                convictionChanceWithoutLawyer: min(0.9, 0.35 + Double(current.criminalRecord) * 0.05)
             )
             return result
         }
@@ -493,8 +515,9 @@ final class GameViewModel: ObservableObject {
         return commitCrimeResult(current, text: summary, isAlert: true)
     }
 
-    /// Hiring a lawyer costs far more than bail, but keeps the charge from
-    /// seriously damaging your record and keeps your weapon out of evidence.
+    /// Hiring a lawyer costs far more than bail, but reliably beats the
+    /// charge down to a fine. Go without one and there's a real chance of an
+    /// actual prison sentence, not just a criminal-record bump.
     func resolveLegalTrouble(hireLawyer: Bool) -> String {
         guard let trouble = pendingLegalTrouble, var current = character else { return "" }
         pendingLegalTrouble = nil
@@ -510,15 +533,115 @@ final class GameViewModel: ObservableObject {
             let bail = min(current.cash, trouble.bailCost)
             current.cash -= bail
             current.criminalRecord += 3
-            current.stats.adjust(happiness: -Int.random(in: 8...16))
             if trouble.confiscatesWeaponWithoutLawyer {
                 current.weaponName = nil
             }
-            text = "You couldn't afford a lawyer, so you took the charge as-is — $\(bail) in bail, a heavier criminal record\(trouble.confiscatesWeaponWithoutLawyer ? ", and your weapon confiscated as evidence" : "")."
-            SoundManager.shared.play(.alert)
+            if Double.random(in: 0...1) < trouble.convictionChanceWithoutLawyer {
+                current.jailYearsRemaining += trouble.jailYearsIfConvicted
+                current.stats.adjust(happiness: -Int.random(in: 10...20))
+                text = "Without a lawyer, the \(trouble.chargeDescription) charge stuck. You were convicted and sentenced to \(trouble.jailYearsIfConvicted) year\(trouble.jailYearsIfConvicted == 1 ? "" : "s") in prison."
+                SoundManager.shared.playSequence([.alert, .death])
+            } else {
+                current.stats.adjust(happiness: -Int.random(in: 8...16))
+                text = "You couldn't afford a lawyer, but caught a break — $\(bail) in bail, a heavier criminal record\(trouble.confiscatesWeaponWithoutLawyer ? ", and your weapon confiscated as evidence" : ""), and no prison time."
+                SoundManager.shared.play(.alert)
+            }
         }
 
         return commitCrimeResult(current, text: text, isAlert: true)
+    }
+
+    /// The yearly track while serving a sentence — no career, no shopping,
+    /// no social life, just prison life until release (or an escape).
+    private func handleJailYear(_ character: inout Character, log: inout [LogEntry]) {
+        character.jailYearsRemaining -= 1
+        let name = character.firstName
+
+        let roll = Double.random(in: 0...1)
+        switch roll {
+        case ..<0.16:
+            let injuryName = inflictViolentInjury(&character, allowGunshot: false)
+            character.stats.adjust(happiness: -Int.random(in: 4...10))
+            log.append(LogEntry(text: "\(name) got caught up in a fight in the yard, coming away with \(injuryName.lowercased()).", isAlert: true))
+            SoundManager.shared.playSequence([.ouch, .alert])
+        case ..<0.30:
+            character.stats.adjust(happiness: -Int.random(in: 6...14))
+            log.append(LogEntry(text: "\(name) spent time in solitary confinement after a write-up.", isAlert: true))
+            SoundManager.shared.play(.sad)
+        case ..<0.45:
+            character.criminalRecord += 1
+            log.append(LogEntry(text: "\(name) got caught with contraband. Extra marks on an already long record.", isAlert: true))
+            SoundManager.shared.play(.alert)
+        case ..<0.60:
+            character.stats.adjust(happiness: Int.random(in: 2...6), smarts: Int.random(in: 1...4))
+            log.append(LogEntry(text: "\(name) joined a prison education program to pass the time.", isAlert: false))
+            SoundManager.shared.play(.tap)
+        case ..<0.72:
+            character.stats.adjust(happiness: Int.random(in: 2...6))
+            log.append(LogEntry(text: "\(name) made an ally inside who watches their back.", isAlert: false))
+            SoundManager.shared.play(.friendJoin)
+        case ..<0.80 where character.jailYearsRemaining > 0:
+            character.jailYearsRemaining = max(0, character.jailYearsRemaining - 1)
+            log.append(LogEntry(text: "\(name) was granted time off their sentence for good behavior.", isAlert: false))
+            SoundManager.shared.play(.success)
+        default:
+            character.stats.adjust(happiness: -Int.random(in: 2...6))
+            log.append(LogEntry(text: "\(name) served another long, uneventful year behind bars.", isAlert: false))
+            SoundManager.shared.play(.tap)
+        }
+
+        if character.jailYearsRemaining <= 0 {
+            character.jailYearsRemaining = 0
+            log.append(LogEntry(text: "\(name) was released from prison.", isAlert: false))
+        }
+    }
+
+    var canAttemptEscape: Bool { character?.isInJail == true }
+
+    /// A real risk/reward option: succeed and you're free immediately as a
+    /// fugitive; fail and the consequences (more years, injuries, even
+    /// death) can be worse than just serving the original sentence.
+    @discardableResult
+    func attemptEscape() -> String {
+        guard var current = character, current.isInJail else { return "" }
+
+        let chance = min(0.6, 0.18 + Double(current.stats.smarts) / 300.0)
+        if Double.random(in: 0...1) < chance {
+            current.jailYearsRemaining = 0
+            current.isFugitive = true
+            current.criminalRecord += 5
+            character = current
+            SoundManager.shared.play(.achievement)
+            var log = yearLog
+            log.append(LogEntry(text: "\(current.firstName) slipped past the guards and escaped. There's no undoing this — they're a fugitive now.", isAlert: true))
+            yearLog = log
+            return "You escaped! You're free, but you're a fugitive for life."
+        }
+
+        let deathRoll = Double.random(in: 0...1)
+        if deathRoll < 0.08 {
+            current.isAlive = false
+            current.causeOfDeath = "a guard's gunshot during a failed prison escape"
+            character = current
+            attackTrigger += 1
+            SoundManager.shared.playSequence([.alert, .death])
+            var log = yearLog
+            log.append(LogEntry(text: "\(current.firstName) was shot by a guard during a failed escape attempt.", isAlert: true))
+            yearLog = log
+            isGameOver = true
+            return "Your escape attempt ended in gunfire. You didn't make it."
+        }
+
+        let extraYears = Int.random(in: 2...5)
+        current.jailYearsRemaining += extraYears
+        let injuryName = inflictViolentInjury(&current, allowGunshot: false)
+        current.stats.adjust(happiness: -Int.random(in: 10...20))
+        character = current
+        SoundManager.shared.playSequence([.ouch, .alert])
+        var log = yearLog
+        log.append(LogEntry(text: "\(current.firstName)'s escape attempt failed. Guards caught them, leaving them with \(injuryName.lowercased()) and \(extraYears) more years added to their sentence.", isAlert: true))
+        yearLog = log
+        return "The escape failed. \(extraYears) years were added to your sentence."
     }
 
     @discardableResult
@@ -894,6 +1017,8 @@ final class GameViewModel: ObservableObject {
 
     func migrationEligibilityMessage(to country: String) -> String? {
         guard let current = character else { return "Start a life before migrating." }
+        guard !current.isInJail else { return "You can't exactly apply for a visa from prison." }
+        guard !current.isFugitive else { return "No country will grant a visa to a known fugitive." }
         guard current.country != country else { return "You already live here." }
         guard current.stage != .infant, current.stage != .child else { return "Too young to migrate on your own." }
         let cost = MigrationData.migrationCost(for: CountryData.profile(for: country))
@@ -923,7 +1048,9 @@ final class GameViewModel: ObservableObject {
                 chargeDescription: "Weapon Smuggling",
                 bailCost: localized(Int.random(in: 600...1800), for: current),
                 lawyerCost: localized(Int.random(in: 9000...20000), for: current),
-                confiscatesWeaponWithoutLawyer: false
+                confiscatesWeaponWithoutLawyer: false,
+                jailYearsIfConvicted: Int.random(in: 2...5),
+                convictionChanceWithoutLawyer: min(0.9, 0.5 + Double(current.criminalRecord) * 0.05)
             )
             return MigrationOutcome(
                 approved: false,
@@ -1281,6 +1408,42 @@ final class GameViewModel: ObservableObject {
         return LogEntry(text: "\(event.actorName) came through — you're now working as \(job.title).", isAlert: false)
     }
 
+    private func resolveGangHeist(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
+        guard accepted else {
+            // Turning down the crew rarely ends well.
+            if Double.random(in: 0...1) < 0.25 {
+                let injuryName = inflictViolentInjury(&character, allowGunshot: false)
+                character.stats.adjust(happiness: -Int.random(in: 5...12))
+                SoundManager.shared.playSequence([.ouch, .alert])
+                return LogEntry(text: "\(event.actorName) didn't like being turned down. You came away with \(injuryName.lowercased()) as a reminder of your place.", isAlert: true)
+            }
+            SoundManager.shared.play(.tap)
+            return LogEntry(text: "You sat this one out. \(event.actorName) wasn't thrilled, but let it go.", isAlert: false)
+        }
+
+        let successChance = 0.42 + Double(character.stats.smarts) / 500.0 + (character.weaponName == nil ? 0 : 0.08)
+        if Double.random(in: 0...1) < successChance {
+            let take = localized(Int.random(in: 800...4000), for: character)
+            character.cash += take
+            character.criminalRecord += 3
+            character.stats.adjust(happiness: Int.random(in: 4...10))
+            SoundManager.shared.play(.achievement)
+            return LogEntry(text: "The job with \(event.actorName) went off clean. Your cut came to $\(take).", isAlert: false)
+        }
+
+        character.criminalRecord += 2
+        SoundManager.shared.playSequence([.alert, .rejected])
+        pendingLegalTrouble = LegalTrouble(
+            chargeDescription: "Bank Robbery",
+            bailCost: localized(Int.random(in: 800...2500), for: character),
+            lawyerCost: localized(Int.random(in: 12000...28000), for: character),
+            confiscatesWeaponWithoutLawyer: character.weaponName != nil,
+            jailYearsIfConvicted: Int.random(in: 3...8),
+            convictionChanceWithoutLawyer: min(0.92, 0.55 + Double(character.criminalRecord) * 0.04)
+        )
+        return LogEntry(text: "The job with \(event.actorName) went south. Alarms, sirens — you were caught at the scene.", isAlert: true)
+    }
+
     private func handleFriends(_ character: inout Character, log: inout [LogEntry]) {
         var remaining: [Friend] = []
         for var friend in character.friends {
@@ -1376,7 +1539,7 @@ final class GameViewModel: ObservableObject {
                 "Say No",
                 "\(actor) asked to borrow money."
             )
-        case .gangRecruitment, .jobOffer:
+        case .gangRecruitment, .jobOffer, .gangHeist:
             // Built directly in handleRelationshipEvents with a stranger
             // actor — never routed through this family/friend scenario bank.
             return ("", "", "", "", "")
@@ -1387,9 +1550,26 @@ final class GameViewModel: ObservableObject {
         guard character.stage != .infant else { return }
         handlePassiveRelationshipEvent(&character, log: &log)
 
+        // Being in a gang comes with its own pressures — occasionally
+        // they'll pull you into a much bigger job than a street robbery.
+        if let gangName = character.gangName, !character.isInJail, pendingSocialEvent == nil, Double.random(in: 0...1) < 0.16 {
+            pendingSocialEvent = SocialEvent(
+                kind: .gangHeist,
+                actorRef: .stranger,
+                actorName: gangName,
+                actorLabel: "Gang",
+                actorGender: Bool.random() ? .male : .female,
+                targetRef: nil,
+                targetName: nil,
+                amount: 0
+            )
+            log.append(LogEntry(text: "\(gangName) has been planning something big and wants you in.", isAlert: true))
+            return
+        }
+
         // A stranger with a job lead or a gang pitch — rarer than the usual
         // family/friend drama, and never from someone already in your life.
-        if character.stage != .child, pendingSocialEvent == nil, Double.random(in: 0...1) < 0.14 {
+        if character.stage != .child, !character.isInJail, pendingSocialEvent == nil, Double.random(in: 0...1) < 0.14 {
             let region = CountryData.profile(for: character.country).region
             let gender: Gender = Bool.random() ? .male : .female
             let strangerName = "\(NameData.randomFirstName(for: gender, region: region)) \(NameData.randomLastName(region: region))"
