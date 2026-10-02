@@ -72,7 +72,8 @@ final class GameViewModel: ObservableObject {
             age: 0,
             stats: Stats.random(),
             family: family,
-            cash: 0
+            cash: 0,
+            stockPrices: StockData.startingPrices()
         )
         yearLog = [LogEntry(text: "You were born in \(country) to \(family[0].name) and \(family[1].name).", isAlert: false)]
         isGameOver = false
@@ -85,6 +86,7 @@ final class GameViewModel: ObservableObject {
 
         if current.isInJail {
             var log: [LogEntry] = []
+            applyYearlyFinances(&current, log: &log)
             handleJailYear(&current, log: &log)
             handleConditions(&current, log: &log)
             applyNaturalDrift(&current)
@@ -103,6 +105,7 @@ final class GameViewModel: ObservableObject {
         let stage = current.stage
         let eventCount = Int.random(in: 1...3)
         var log: [LogEntry] = []
+        applyYearlyFinances(&current, log: &log)
 
         if let allowance = yearlyPocketMoney(for: current) {
             current.cash += allowance
@@ -235,6 +238,116 @@ final class GameViewModel: ObservableObject {
         default:
             return "You received $\(amount)."
         }
+    }
+
+    private static let savingsInterestRate = 0.04
+    /// Stocks drift up slightly on average so holding through the noise
+    /// tends to pay off, same as yearly compounding on savings.
+    private static let stockDriftRate = 0.02
+
+    /// Grows savings and rolls the market forward by one year. Runs for
+    /// every year that passes, prison included — money keeps working for
+    /// you (or against you) whether or not you're free to spend it.
+    private func applyYearlyFinances(_ character: inout Character, log: inout [LogEntry]) {
+        if character.bankBalance > 0 {
+            let interest = max(1, Int(Double(character.bankBalance) * Self.savingsInterestRate))
+            character.bankBalance += interest
+            log.append(LogEntry(text: "Your savings earned $\(interest) in interest.", isAlert: false))
+        }
+
+        for stock in StockData.all {
+            let oldPrice = character.stockPrices[stock.id] ?? stock.basePrice
+            let swing = Double.random(in: -stock.volatility...stock.volatility)
+            let newPrice = max(1.0, oldPrice * (1 + Self.stockDriftRate + swing))
+            character.stockPrices[stock.id] = newPrice
+
+            let shares = character.stockHoldings[stock.id] ?? 0
+            guard shares > 0, oldPrice > 0 else { continue }
+            let percentChange = (newPrice - oldPrice) / oldPrice
+            guard abs(percentChange) >= 0.15 else { continue }
+            let direction = percentChange > 0 ? "jumped" : "dropped"
+            let percentText = String(format: "%.0f", abs(percentChange) * 100)
+            log.append(LogEntry(text: "\(stock.symbol) \(direction) \(percentText)% to $\(String(format: "%.2f", newPrice))/share.", isAlert: percentChange < 0))
+        }
+    }
+
+    func stockPrice(for stock: Stock, character: Character) -> Double {
+        character.stockPrices[stock.id] ?? stock.basePrice
+    }
+
+    @discardableResult
+    func depositToBank(_ amount: Int) -> String {
+        guard var current = character, amount > 0 else { return "" }
+        guard current.cash >= amount else { return "You don't have $\(amount) in cash." }
+        current.cash -= amount
+        current.bankBalance += amount
+        character = current
+        SoundManager.shared.play(.cash)
+        return "Deposited $\(amount) into savings."
+    }
+
+    @discardableResult
+    func withdrawFromBank(_ amount: Int) -> String {
+        guard var current = character, amount > 0 else { return "" }
+        guard current.bankBalance >= amount else { return "You don't have $\(amount) in savings." }
+        current.bankBalance -= amount
+        current.cash += amount
+        character = current
+        SoundManager.shared.play(.cash)
+        return "Withdrew $\(amount) from savings."
+    }
+
+    @discardableResult
+    func buyStock(_ stock: Stock, shares: Int) -> String {
+        guard var current = character, shares > 0 else { return "" }
+        let price = stockPrice(for: stock, character: current)
+        let cost = max(1, Int((price * Double(shares)).rounded(.up)))
+        guard current.cash >= cost else { return "You need $\(cost) to buy \(shares) share\(shares == 1 ? "" : "s") of \(stock.symbol)." }
+        current.cash -= cost
+        current.stockHoldings[stock.id, default: 0] += shares
+        character = current
+        SoundManager.shared.play(.cash)
+        return "Bought \(shares) share\(shares == 1 ? "" : "s") of \(stock.symbol) for $\(cost)."
+    }
+
+    @discardableResult
+    func sellStock(_ stock: Stock, shares: Int) -> String {
+        guard var current = character, shares > 0, (current.stockHoldings[stock.id] ?? 0) >= shares else {
+            return "You don't own that many shares."
+        }
+        let price = stockPrice(for: stock, character: current)
+        let proceeds = max(0, Int((price * Double(shares)).rounded(.down)))
+        current.stockHoldings[stock.id, default: 0] -= shares
+        if current.stockHoldings[stock.id] == 0 { current.stockHoldings[stock.id] = nil }
+        current.cash += proceeds
+        character = current
+        SoundManager.shared.play(.cash)
+        return "Sold \(shares) share\(shares == 1 ? "" : "s") of \(stock.symbol) for $\(proceeds)."
+    }
+
+    @discardableResult
+    func gamble(_ amount: Int, game: GambleGame) -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 18 else { return "You must be 18 to gamble." }
+        guard amount > 0 else { return "" }
+        guard current.cash >= amount else { return "You don't have $\(amount) to bet." }
+
+        current.cash -= amount
+        let won = Double.random(in: 0...1) < game.winChance
+        let text: String
+        if won {
+            let payout = Int(Double(amount) * game.payoutMultiplier)
+            current.cash += payout
+            current.stats.adjust(happiness: Int.random(in: 4...10))
+            text = "You won $\(payout) at \(game.rawValue)!"
+            SoundManager.shared.play(.success)
+        } else {
+            current.stats.adjust(happiness: -Int.random(in: 3...8))
+            text = "You lost your $\(amount) bet at \(game.rawValue)."
+            SoundManager.shared.play(.rejected)
+        }
+        character = current
+        return text
     }
 
     func purchase(_ accessory: Accessory) {

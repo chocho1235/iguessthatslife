@@ -20,6 +20,9 @@ struct Character: Codable {
     var causeOfDeath: String?
 
     var cash: Int = 0
+    var bankBalance: Int = 0
+    var stockHoldings: [String: Int] = [:]
+    var stockPrices: [String: Double] = [:]
     var ownedAccessoryIDs: Set<String> = []
     var equippedAccessoryIDs: [AccessorySlot: String] = [:]
     var ownedOutfitIDs: Set<String> = ["basic_tee"]

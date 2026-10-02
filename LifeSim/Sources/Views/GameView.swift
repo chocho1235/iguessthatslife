@@ -5,6 +5,7 @@ import UIKit
 struct GameView: View {
     @ObservedObject var viewModel: GameViewModel
     @State private var showingShop = false
+    @State private var showingBank = false
     @State private var showingDoctor = false
     @State private var showingCareer = false
     @State private var showingCrime = false
@@ -68,6 +69,9 @@ struct GameView: View {
         }
         .sheet(isPresented: $showingShop) {
             ShopHubView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingBank) {
+            BankHubView(viewModel: viewModel)
         }
         .sheet(isPresented: $showingDoctor) {
             DoctorView(viewModel: viewModel)
@@ -166,6 +170,9 @@ struct GameView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 dashboardButton("Shop", icon: "bag.fill", color: .blue) {
                     showingShop = true
+                }
+                dashboardButton("Bank", icon: "building.columns.fill", color: .mint) {
+                    showingBank = true
                 }
                 dashboardButton("Doctor", icon: "stethoscope", color: .red) {
                     showingDoctor = true

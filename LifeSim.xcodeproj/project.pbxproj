@@ -68,6 +68,13 @@
 		F837BB380B3FAC91EE4CF9A7 /* Migration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B79D71F66A812C413B6530EC /* Migration.swift */; };
 		FAEABCB27C4F21B90E740C94 /* FriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC0FF1237A03EE47BD04F4A /* FriendsView.swift */; };
 		FBEEB9AD753A8C9B9B42BE7B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A55CDC31927EE00AFF86E25 /* ContentView.swift */; };
+		D1F43CDBE62724F83D4B41C3 /* Stock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ABC3CC81C8375EFFAF300A7 /* Stock.swift */; };
+		89E307AAF15ED15727C0CDB3 /* GambleGame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E7A4C796ECA7DD681EFEE05 /* GambleGame.swift */; };
+		A40FACDA9F1EEC4240AD3FEA /* StockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DF2FB618A054E163B6913F /* StockData.swift */; };
+		DD0CF94BD7ED35C3FC26966C /* BankHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 538152FDEA6C3C216132F0E6 /* BankHubView.swift */; };
+		A6BC8D5E7AC17FEC64C6AF5A /* SavingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C48C6D3C52005426E4AD57 /* SavingsView.swift */; };
+		1BDB611A004E60F61C42873A /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDF31EA87F6809E8BA06EA1 /* InvestmentsView.swift */; };
+		CB6C636B150A8467A47928A4 /* CasinoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F84943BF6E39B4D7E78B505 /* CasinoView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -133,6 +140,13 @@
 		F08BF4B0A45BCA4473598635 /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
 		F69A444E9462F43EB959B677 /* ClothingShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClothingShopView.swift; sourceTree = "<group>"; };
 		FBEBD53A5E34A5282F14B679 /* Outfit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Outfit.swift; sourceTree = "<group>"; };
+		2ABC3CC81C8375EFFAF300A7 /* Stock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stock.swift; sourceTree = "<group>"; };
+		1E7A4C796ECA7DD681EFEE05 /* GambleGame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GambleGame.swift; sourceTree = "<group>"; };
+		97DF2FB618A054E163B6913F /* StockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockData.swift; sourceTree = "<group>"; };
+		538152FDEA6C3C216132F0E6 /* BankHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankHubView.swift; sourceTree = "<group>"; };
+		12C48C6D3C52005426E4AD57 /* SavingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsView.swift; sourceTree = "<group>"; };
+		DBDF31EA87F6809E8BA06EA1 /* InvestmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestmentsView.swift; sourceTree = "<group>"; };
+		4F84943BF6E39B4D7E78B505 /* CasinoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasinoView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -180,7 +194,9 @@
 				C4775C17C9D66AD4DF315ADA /* RelationshipHistory.swift */,
 				B603302A0DE0BDD25696C152 /* Robbery.swift */,
 				A49299338383F60CA568A57C /* Stats.swift */,
+				2ABC3CC81C8375EFFAF300A7 /* Stock.swift */,
 				A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */,
+				1E7A4C796ECA7DD681EFEE05 /* GambleGame.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -241,6 +257,10 @@
 				018C2097B1E6E0D3255A3753 /* StartView.swift */,
 				AA3FACFF17D809F9B72BDB93 /* StatBarView.swift */,
 				7E72C831FF36892091044DD2 /* WeaponShopView.swift */,
+				538152FDEA6C3C216132F0E6 /* BankHubView.swift */,
+				12C48C6D3C52005426E4AD57 /* SavingsView.swift */,
+				DBDF31EA87F6809E8BA06EA1 /* InvestmentsView.swift */,
+				4F84943BF6E39B4D7E78B505 /* CasinoView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -257,6 +277,7 @@
 				DFEB3818BD33EF7DF82DD27A /* NameData.swift */,
 				CB022AE9403EDAFB821D086D /* OutfitData.swift */,
 				C1D83236157BCC115DC46FAE /* WeaponData.swift */,
+				97DF2FB618A054E163B6913F /* StockData.swift */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -381,6 +402,13 @@
 				CBE5B375FC9BB0D7AB1A59FD /* Weapon.swift in Sources */,
 				4A706FA6D3272057B676EC6C /* WeaponData.swift in Sources */,
 				1FC68FD18E4B0FA767D1C025 /* WeaponShopView.swift in Sources */,
+				D1F43CDBE62724F83D4B41C3 /* Stock.swift in Sources */,
+				89E307AAF15ED15727C0CDB3 /* GambleGame.swift in Sources */,
+				A40FACDA9F1EEC4240AD3FEA /* StockData.swift in Sources */,
+				DD0CF94BD7ED35C3FC26966C /* BankHubView.swift in Sources */,
+				A6BC8D5E7AC17FEC64C6AF5A /* SavingsView.swift in Sources */,
+				1BDB611A004E60F61C42873A /* InvestmentsView.swift in Sources */,
+				CB6C636B150A8467A47928A4 /* CasinoView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
