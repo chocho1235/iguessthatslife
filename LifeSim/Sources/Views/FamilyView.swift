@@ -31,7 +31,7 @@ struct FamilyView: View {
                             .clipShape(Circle())
                         VStack(alignment: .leading) {
                             Text(member.name).font(.subheadline.bold())
-                            Text(member.relation.rawValue)
+                            Text(member.isOwnChild ? "\(member.relation.rawValue) · Age \(member.age)" : member.relation.rawValue)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

@@ -19,6 +19,12 @@ struct PersonDetailView: View {
     private var remainingInteractions: Int { viewModel.remainingInteractions(for: person.ref) }
     private var outOfInteractions: Bool { remainingInteractions <= 0 }
 
+    /// A toddler can't be shaken down for cash or dragged into an argument —
+    /// those actions only unlock once they're old enough (teen or up).
+    private var isYoungChild: Bool {
+        (person.label == "Son" || person.label == "Daughter") && (person.stage == .infant || person.stage == .child)
+    }
+
     private var moodLabel: (text: String, color: Color)? {
         if viewModel.isInGreatMood(person.ref) { return ("In a great mood this year", .green) }
         if viewModel.isInBadMood(person.ref) { return ("Seems distant this year", .orange) }
@@ -94,17 +100,23 @@ struct PersonDetailView: View {
                             actionButton("Give Gift ($\(giftCost))", icon: "gift.fill", tint: .purple, disabled: outOfInteractions || (viewModel.character?.cash ?? 0) < giftCost) {
                                 viewModel.giveGift(with: person.ref, cost: giftCost)
                             }
-                            actionButton("Ask for Money", icon: "dollarsign.circle.fill", tint: .green, disabled: outOfInteractions) {
-                                viewModel.askForMoney(from: person.ref)
-                            }
-                            actionButton("Prank Them", icon: "theatermasks.fill", tint: .orange, disabled: outOfInteractions) {
-                                viewModel.prank(person.ref)
-                            }
-                            actionButton("Argue", icon: "flame.fill", tint: .red, disabled: outOfInteractions) {
-                                viewModel.argue(with: person.ref)
-                            }
-                            actionButton("Steal From Them", icon: "hand.raised.slash.fill", tint: .gray, disabled: outOfInteractions) {
-                                viewModel.steal(from: person.ref)
+                            if isYoungChild {
+                                Text("They're too young for anything more than this for now.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                actionButton("Ask for Money", icon: "dollarsign.circle.fill", tint: .green, disabled: outOfInteractions) {
+                                    viewModel.askForMoney(from: person.ref)
+                                }
+                                actionButton("Prank Them", icon: "theatermasks.fill", tint: .orange, disabled: outOfInteractions) {
+                                    viewModel.prank(person.ref)
+                                }
+                                actionButton("Argue", icon: "flame.fill", tint: .red, disabled: outOfInteractions) {
+                                    viewModel.argue(with: person.ref)
+                                }
+                                actionButton("Steal From Them", icon: "hand.raised.slash.fill", tint: .gray, disabled: outOfInteractions) {
+                                    viewModel.steal(from: person.ref)
+                                }
                             }
                         }
                         .padding(.horizontal)

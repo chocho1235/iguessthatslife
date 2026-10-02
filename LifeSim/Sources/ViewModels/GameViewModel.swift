@@ -146,6 +146,7 @@ final class GameViewModel: ObservableObject {
 
         handleFriends(&current, log: &log)
         handlePartner(&current, log: &log)
+        handleChildren(&current, log: &log)
         handleRelationshipEvents(&current, log: &log)
         handleConditions(&current, log: &log)
         rollForVision(&current, log: &log)
@@ -344,6 +345,46 @@ final class GameViewModel: ObservableObject {
         } else {
             current.stats.adjust(happiness: -Int.random(in: 3...8))
             text = "You lost your $\(amount) bet at \(game.rawValue)."
+            SoundManager.shared.play(.rejected)
+        }
+        character = current
+        return text
+    }
+
+    /// Deducts the bet up front, same as `gamble` — the table rounds pay
+    /// back according to the outcome once the hand is settled.
+    @discardableResult
+    func placeBlackjackBet(_ amount: Int) -> Bool {
+        guard var current = character, current.age >= 18, amount > 0, current.cash >= amount else { return false }
+        current.cash -= amount
+        character = current
+        SoundManager.shared.play(.tap)
+        return true
+    }
+
+    @discardableResult
+    func settleBlackjack(bet: Int, outcome: BlackjackOutcome) -> String {
+        guard var current = character else { return "" }
+        let text: String
+        switch outcome {
+        case .blackjack:
+            let payout = bet + Int(Double(bet) * 1.5)
+            current.cash += payout
+            current.stats.adjust(happiness: Int.random(in: 6...12))
+            text = "Blackjack! You won $\(payout - bet) on your $\(bet) bet."
+            SoundManager.shared.play(.achievement)
+        case .win:
+            current.cash += bet * 2
+            current.stats.adjust(happiness: Int.random(in: 4...10))
+            text = "You won $\(bet) at blackjack."
+            SoundManager.shared.play(.success)
+        case .push:
+            current.cash += bet
+            text = "Push — your $\(bet) bet was returned."
+            SoundManager.shared.play(.tap)
+        case .lose:
+            current.stats.adjust(happiness: -Int.random(in: 3...8))
+            text = "You lost your $\(bet) bet at blackjack."
             SoundManager.shared.play(.rejected)
         }
         character = current
@@ -1003,6 +1044,7 @@ final class GameViewModel: ObservableObject {
     private func randomCrimeTarget(from character: Character) -> (ref: PersonRef, name: String)? {
         let familyTargets = character.family
             .filter(\.isAlive)
+            .filter { !$0.isOwnChild }
             .map { (ref: PersonRef.family($0.id), name: $0.name) }
         let friendTargets = character.friends
             .map { (ref: PersonRef.friend($0.id), name: $0.name) }
@@ -1784,6 +1826,91 @@ final class GameViewModel: ObservableObject {
         return partner.isMarried ? "You and \(partner.name) got divorced." : "You and \(partner.name) broke up."
     }
 
+    func tryForBabyEligibilityMessage() -> String? {
+        guard let current = character else { return "Start a life first." }
+        guard current.partner != nil else { return "You need a partner to try for a baby." }
+        guard current.stage == .adult, current.age >= 18, current.age <= 50 else {
+            return "You're outside the age where this is likely to work."
+        }
+        if let blocked = budgetMessage(current, ref: .partner) { return blocked }
+        return nil
+    }
+
+    @discardableResult
+    func tryForBaby() -> String {
+        guard var current = character, let partner = current.partner else { return "" }
+        if let blocked = tryForBabyEligibilityMessage() { return blocked }
+
+        updateHistory(&current, ref: .partner) { $0.recordUse("tryForBaby") }
+
+        let chance = min(0.85, 0.25 + Double(partner.relationship) / 150.0)
+        guard Double.random(in: 0...1) < chance else {
+            character = current
+            SoundManager.shared.play(.tap)
+            return "It didn't happen this time. Maybe try again next year."
+        }
+
+        let region = CountryData.profile(for: current.country).region
+        let gender: Gender = Bool.random() ? .male : .female
+        let name = "\(NameData.randomFirstName(for: gender, region: region)) \(current.lastName)"
+        current.family.append(FamilyMember(name: name, relation: gender == .male ? .son : .daughter, relationship: 70, age: 0))
+        current.stats.adjust(happiness: Int.random(in: 8...16))
+        character = current
+        SoundManager.shared.play(.achievement)
+        return "You had a \(gender == .male ? "son" : "daughter"), \(name)! Congratulations."
+    }
+
+    func adoptChildEligibilityMessage() -> String? {
+        guard let current = character else { return "Start a life first." }
+        guard current.stage == .adult, current.age >= 21 else { return "You need to be at least 21 to adopt." }
+        let cost = localized(2500, for: current)
+        guard current.cash >= cost else { return "You need $\(cost) to cover adoption costs." }
+        return nil
+    }
+
+    @discardableResult
+    func adoptChild() -> String {
+        guard var current = character else { return "" }
+        if let blocked = adoptChildEligibilityMessage() { return blocked }
+
+        let cost = localized(2500, for: current)
+        current.cash -= cost
+        let region = CountryData.profile(for: current.country).region
+        let gender: Gender = Bool.random() ? .male : .female
+        let age = Int.random(in: 0...6)
+        let name = "\(NameData.randomFirstName(for: gender, region: region)) \(current.lastName)"
+        current.family.append(FamilyMember(name: name, relation: gender == .male ? .son : .daughter, relationship: 60, age: age))
+        current.stats.adjust(happiness: Int.random(in: 8...16))
+        character = current
+        SoundManager.shared.play(.achievement)
+        return "You adopted \(name)! Welcome to the family."
+    }
+
+    /// Ages every son/daughter by a year, drifts their relationship gently,
+    /// and narrates a couple of one-off milestones. Mirrors `handleFriends`/
+    /// `handlePartner` in shape, but children never leave `character.family`
+    /// — at 18 they just get a narration beat, same as everyone else who
+    /// stays in the family list for life.
+    private func handleChildren(_ character: inout Character, log: inout [LogEntry]) {
+        for index in character.family.indices {
+            guard character.family[index].isOwnChild, character.family[index].isAlive else { continue }
+            character.family[index].age += 1
+            let newAge = character.family[index].age
+            let name = character.family[index].name
+
+            character.family[index].adjustRelationship(Int.random(in: -3...5))
+
+            switch newAge {
+            case 5:
+                log.append(LogEntry(text: "\(name) started school.", isAlert: false))
+            case 18:
+                log.append(LogEntry(text: "\(name) moved out to start their own life.", isAlert: false))
+            default:
+                break
+            }
+        }
+    }
+
     private func handlePartner(_ character: inout Character, log: inout [LogEntry]) {
         guard var partner = character.partner else { return }
         partner.yearsTogether += 1
@@ -1970,6 +2097,7 @@ final class GameViewModel: ObservableObject {
 
         let familyPeople = character.family
             .filter(\.isAlive)
+            .filter { !$0.isOwnChild }
             .map { (ref: PersonRef.family($0.id), name: $0.name, label: $0.relation.rawValue, isFamily: true, volatility: 10, gender: $0.gender) }
         let friendPeople = character.friends
             .map { (ref: PersonRef.friend($0.id), name: $0.name, label: "Friend", isFamily: false, volatility: $0.volatility, gender: $0.gender) }
@@ -2098,7 +2226,7 @@ final class GameViewModel: ObservableObject {
     private func handlePassiveRelationshipEvent(_ character: inout Character, log: inout [LogEntry]) {
         guard Double.random(in: 0...1) < 0.35 else { return }
 
-        if let family = character.family.filter(\.isAlive).randomElement(),
+        if let family = character.family.filter({ $0.isAlive && !$0.isOwnChild }).randomElement(),
            family.relationship >= 70,
            Double.random(in: 0...1) < 0.45 {
             let amount = localized(Int.random(in: 10...45), for: character)
@@ -2131,7 +2259,7 @@ final class GameViewModel: ObservableObject {
             return
         }
 
-        if let family = character.family.filter(\.isAlive).randomElement(),
+        if let family = character.family.filter({ $0.isAlive && !$0.isOwnChild }).randomElement(),
            family.relationship < 40 {
             let loss = Int.random(in: 4...10)
             if let index = character.family.firstIndex(where: { $0.id == family.id }) {

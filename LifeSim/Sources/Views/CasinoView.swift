@@ -38,7 +38,29 @@ struct CasinoView: View {
                         }
                     }
 
-                    Section("Games") {
+                    Section("Table Games") {
+                        NavigationLink {
+                            BlackjackView(viewModel: viewModel)
+                        } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: "suit.spade.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(Color.green.gradient)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Blackjack").font(.subheadline.bold())
+                                    Text("Real cards, real table. Beat the dealer to 21.")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+
+                    Section("Quick Games") {
                         ForEach(GambleGame.allCases) { game in
                             gameRow(game)
                         }

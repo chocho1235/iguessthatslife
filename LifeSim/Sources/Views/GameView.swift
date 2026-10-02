@@ -15,6 +15,8 @@ struct GameView: View {
     @State private var showingJailResult = false
     @State private var selectedPerson: PersonSelection?
     @State private var showAttackFlash = false
+    @State private var familyFeedback: String?
+    @State private var showingFamilyResult = false
 
     var character: Character { viewModel.character! }
 
@@ -29,6 +31,7 @@ struct GameView: View {
                     if let partner = character.partner {
                         PartnerView(partner: partner, stage: character.stage, country: character.country) { selectedPerson = $0 }
                     }
+                    familyActionsRow
                     FamilyView(family: character.family, country: character.country) { selectedPerson = $0 }
                     FriendsView(friends: character.friends, stage: character.stage, country: character.country) { selectedPerson = $0 }
                 }
@@ -221,6 +224,44 @@ struct GameView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(jailFeedback ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private var familyActionsRow: some View {
+        if character.stage == .adult {
+            HStack(spacing: 10) {
+                Button {
+                    familyFeedback = viewModel.tryForBaby()
+                    showingFamilyResult = true
+                } label: {
+                    Label("Have a Baby", systemImage: "figure.and.child.holdinghands")
+                        .font(.caption.bold())
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+                .tint(.pink)
+                .disabled(viewModel.tryForBabyEligibilityMessage() != nil)
+
+                Button {
+                    familyFeedback = viewModel.adoptChild()
+                    showingFamilyResult = true
+                } label: {
+                    Label("Adopt", systemImage: "person.badge.plus")
+                        .font(.caption.bold())
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+                .tint(.purple)
+                .disabled(viewModel.adoptChildEligibilityMessage() != nil)
+            }
+            .alert("Family", isPresented: $showingFamilyResult) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(familyFeedback ?? "")
+            }
         }
     }
 

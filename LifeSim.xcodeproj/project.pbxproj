@@ -75,6 +75,10 @@
 		A6BC8D5E7AC17FEC64C6AF5A /* SavingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C48C6D3C52005426E4AD57 /* SavingsView.swift */; };
 		1BDB611A004E60F61C42873A /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDF31EA87F6809E8BA06EA1 /* InvestmentsView.swift */; };
 		CB6C636B150A8467A47928A4 /* CasinoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F84943BF6E39B4D7E78B505 /* CasinoView.swift */; };
+		5492D2A30980C65C3C7C6E83 /* BlackjackModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75806E7CD220A4532F7C3287 /* BlackjackModels.swift */; };
+		A1BE2C4070BE7CABAC2594A5 /* BlackjackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96DA5E815664AC32C4EA40E /* BlackjackView.swift */; };
+		BA2859AB4F0017F42EA8FB39 /* PlayingCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746E4FDB40DB1731AD6BD4DB /* PlayingCardView.swift */; };
+		4C32544FD51A313F8913893E /* CasinoIntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E94D9277210F1F8DA4BE6D1 /* CasinoIntroView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -147,6 +151,10 @@
 		12C48C6D3C52005426E4AD57 /* SavingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsView.swift; sourceTree = "<group>"; };
 		DBDF31EA87F6809E8BA06EA1 /* InvestmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvestmentsView.swift; sourceTree = "<group>"; };
 		4F84943BF6E39B4D7E78B505 /* CasinoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasinoView.swift; sourceTree = "<group>"; };
+		75806E7CD220A4532F7C3287 /* BlackjackModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlackjackModels.swift; sourceTree = "<group>"; };
+		A96DA5E815664AC32C4EA40E /* BlackjackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlackjackView.swift; sourceTree = "<group>"; };
+		746E4FDB40DB1731AD6BD4DB /* PlayingCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayingCardView.swift; sourceTree = "<group>"; };
+		2E94D9277210F1F8DA4BE6D1 /* CasinoIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasinoIntroView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -197,6 +205,7 @@
 				2ABC3CC81C8375EFFAF300A7 /* Stock.swift */,
 				A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */,
 				1E7A4C796ECA7DD681EFEE05 /* GambleGame.swift */,
+				75806E7CD220A4532F7C3287 /* BlackjackModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -261,6 +270,9 @@
 				12C48C6D3C52005426E4AD57 /* SavingsView.swift */,
 				DBDF31EA87F6809E8BA06EA1 /* InvestmentsView.swift */,
 				4F84943BF6E39B4D7E78B505 /* CasinoView.swift */,
+				A96DA5E815664AC32C4EA40E /* BlackjackView.swift */,
+				746E4FDB40DB1731AD6BD4DB /* PlayingCardView.swift */,
+				2E94D9277210F1F8DA4BE6D1 /* CasinoIntroView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -409,6 +421,10 @@
 				A6BC8D5E7AC17FEC64C6AF5A /* SavingsView.swift in Sources */,
 				1BDB611A004E60F61C42873A /* InvestmentsView.swift in Sources */,
 				CB6C636B150A8467A47928A4 /* CasinoView.swift in Sources */,
+				5492D2A30980C65C3C7C6E83 /* BlackjackModels.swift in Sources */,
+				A1BE2C4070BE7CABAC2594A5 /* BlackjackView.swift in Sources */,
+				BA2859AB4F0017F42EA8FB39 /* PlayingCardView.swift in Sources */,
+				4C32544FD51A313F8913893E /* CasinoIntroView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

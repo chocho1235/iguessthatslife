@@ -20,7 +20,7 @@ struct BankHubView: View {
                     bankRow(icon: "chart.line.uptrend.xyaxis", color: .green, title: "Investments", subtitle: "Buy and sell stocks")
                 }
                 NavigationLink {
-                    CasinoView(viewModel: viewModel)
+                    CasinoIntroView(viewModel: viewModel)
                 } label: {
                     bankRow(icon: "die.face.5.fill", color: .purple, title: "Casino", subtitle: "Try your luck — 18+")
                 }
