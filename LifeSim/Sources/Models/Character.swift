@@ -1,11 +1,11 @@
 import Foundation
 
-enum Gender: String {
+enum Gender: String, Codable {
     case male = "Male"
     case female = "Female"
 }
 
-struct Character {
+struct Character: Codable {
     var firstName: String
     var lastName: String
     var gender: Gender
@@ -14,6 +14,7 @@ struct Character {
     var stats: Stats
     var family: [FamilyMember]
     var friends: [Friend] = []
+    var partner: Partner? = nil
     var conditions: [ActiveCondition] = []
     var isAlive: Bool = true
     var causeOfDeath: String?

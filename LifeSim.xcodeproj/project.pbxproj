@@ -40,10 +40,13 @@
 		7EB91FCEEE66CE0137BC7893 /* CountryData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40FDAE12002D18E1023C53F /* CountryData.swift */; };
 		7F64C49B4253A9EB84794BAE /* PersonSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78F873C48EFB76F65BD21612 /* PersonSelection.swift */; };
 		813EF8C7B331C16C5FF2B703 /* FamilyMember.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED6AAECC5CAE2459C65409C /* FamilyMember.swift */; };
+		81BCD8E73F3F06DEDDBF229D /* Partner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B4B8FA89122585E57A79A2D /* Partner.swift */; };
 		858879BD15F5DEE3D3A3543A /* SpeechBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A87B6C91687DA5A6DC37915 /* SpeechBubble.swift */; };
 		867C30143DEA6C06AFD594FF /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38288ABAC88A035D57BEF508 /* ShopView.swift */; };
 		8CBAA720C5C06650266730C9 /* StartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018C2097B1E6E0D3255A3753 /* StartView.swift */; };
+		921BDA30A9A2E5DBA0D854FF /* RelationshipHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4775C17C9D66AD4DF315ADA /* RelationshipHistory.swift */; };
 		975820D6854185B9B9D58898 /* JobData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D101AC5AC8FB0BE993EE8D7D /* JobData.swift */; };
+		99B7203DE01A074300F17ED5 /* SaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E3A5860410EF28ECC0F3501 /* SaveManager.swift */; };
 		9DE06E1AA76AC7E845BCB78D /* CultureRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B94748765106B6478DE17C /* CultureRegion.swift */; };
 		9F923B2C45BA402F3D2FEBFD /* CheckupCutsceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E85E543CB1F0D833B1E3AE4 /* CheckupCutsceneView.swift */; };
 		AF0915785488327A829E5D57 /* Accessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5418A06147AECE762D53415A /* Accessory.swift */; };
@@ -55,6 +58,7 @@
 		CBE5B375FC9BB0D7AB1A59FD /* Weapon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */; };
 		D4033146C8AEDDE24B0ECFCD /* Robbery.swift in Sources */ = {isa = PBXBuildFile; fileRef = B603302A0DE0BDD25696C152 /* Robbery.swift */; };
 		D5EBD3AB73455DE2FA3FF2A1 /* EventData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B021CAC2A7011A87C852FA2 /* EventData.swift */; };
+		E2140F7A8CF6B3D23D39F018 /* PartnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABB7C2F7594AD52927C5989 /* PartnerView.swift */; };
 		E95250185C48203AEEF9B891 /* LegalTroubleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CC12F6CC7A62B7E627B090 /* LegalTroubleView.swift */; };
 		EC0657B153DD4F722A6C9072 /* EducationLevel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A085026D4DA3A717DFC724EB /* EducationLevel.swift */; };
 		EE5939653A5FA5C8F47D4889 /* AccessoryData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C211054F99E197CE039633DE /* AccessoryData.swift */; };
@@ -72,8 +76,11 @@
 		17B94748765106B6478DE17C /* CultureRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CultureRegion.swift; sourceTree = "<group>"; };
 		19CC12F6CC7A62B7E627B090 /* LegalTroubleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalTroubleView.swift; sourceTree = "<group>"; };
 		19DA1A1934142FDB6BBCCAEE /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
+		1ABB7C2F7594AD52927C5989 /* PartnerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerView.swift; sourceTree = "<group>"; };
+		1B4B8FA89122585E57A79A2D /* Partner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Partner.swift; sourceTree = "<group>"; };
 		2D3A59BA78E371DC573EC3F2 /* Condition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Condition.swift; sourceTree = "<group>"; };
 		2DEFAF6204EFC1CF0D95D074 /* JobApplicationOutcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobApplicationOutcome.swift; sourceTree = "<group>"; };
+		2E3A5860410EF28ECC0F3501 /* SaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveManager.swift; sourceTree = "<group>"; };
 		314E4F47907ED17B31F664A5 /* CheckupOutcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckupOutcome.swift; sourceTree = "<group>"; };
 		38288ABAC88A035D57BEF508 /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopView.swift; sourceTree = "<group>"; };
 		498BFF093C120E69B110D613 /* LifeSimApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeSimApp.swift; sourceTree = "<group>"; };
@@ -112,6 +119,7 @@
 		BEF2281C177FDA4FF11918D7 /* FamilyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyView.swift; sourceTree = "<group>"; };
 		C1D83236157BCC115DC46FAE /* WeaponData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeaponData.swift; sourceTree = "<group>"; };
 		C211054F99E197CE039633DE /* AccessoryData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessoryData.swift; sourceTree = "<group>"; };
+		C4775C17C9D66AD4DF315ADA /* RelationshipHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelationshipHistory.swift; sourceTree = "<group>"; };
 		CB022AE9403EDAFB821D086D /* OutfitData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutfitData.swift; sourceTree = "<group>"; };
 		CED6AAECC5CAE2459C65409C /* FamilyMember.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMember.swift; sourceTree = "<group>"; };
 		D0604CEEB7A19A40A8B1E9AF /* Character.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Character.swift; sourceTree = "<group>"; };
@@ -140,6 +148,7 @@
 			isa = PBXGroup;
 			children = (
 				F08BF4B0A45BCA4473598635 /* GameViewModel.swift */,
+				2E3A5860410EF28ECC0F3501 /* SaveManager.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -166,7 +175,9 @@
 				19DA1A1934142FDB6BBCCAEE /* LogEntry.swift */,
 				B79D71F66A812C413B6530EC /* Migration.swift */,
 				FBEBD53A5E34A5282F14B679 /* Outfit.swift */,
+				1B4B8FA89122585E57A79A2D /* Partner.swift */,
 				78F873C48EFB76F65BD21612 /* PersonSelection.swift */,
+				C4775C17C9D66AD4DF315ADA /* RelationshipHistory.swift */,
 				B603302A0DE0BDD25696C152 /* Robbery.swift */,
 				A49299338383F60CA568A57C /* Stats.swift */,
 				A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */,
@@ -222,6 +233,7 @@
 				19CC12F6CC7A62B7E627B090 /* LegalTroubleView.swift */,
 				92F57A1DD274D4CAED42DFCA /* MigrationMapView.swift */,
 				EE0E4DE72C3AB269C72E314B /* MigrationQuizView.swift */,
+				1ABB7C2F7594AD52927C5989 /* PartnerView.swift */,
 				6BAFAA6748BD5B24E4CDBE78 /* PersonDetailView.swift */,
 				66AC5D8E6F50F35CF3264A33 /* ShopHubView.swift */,
 				38288ABAC88A035D57BEF508 /* ShopView.swift */,
@@ -352,9 +364,13 @@
 				405BBFB49544E3B18CB1B0D6 /* NameData.swift in Sources */,
 				0C133A95F3225139428AEB9D /* Outfit.swift in Sources */,
 				63604B039D2993DAA6104352 /* OutfitData.swift in Sources */,
+				81BCD8E73F3F06DEDDBF229D /* Partner.swift in Sources */,
+				E2140F7A8CF6B3D23D39F018 /* PartnerView.swift in Sources */,
 				B2A85308AB72B5622FC835F8 /* PersonDetailView.swift in Sources */,
 				7F64C49B4253A9EB84794BAE /* PersonSelection.swift in Sources */,
+				921BDA30A9A2E5DBA0D854FF /* RelationshipHistory.swift in Sources */,
 				D4033146C8AEDDE24B0ECFCD /* Robbery.swift in Sources */,
+				99B7203DE01A074300F17ED5 /* SaveManager.swift in Sources */,
 				796328A154470738DF651A05 /* ShopHubView.swift in Sources */,
 				867C30143DEA6C06AFD594FF /* ShopView.swift in Sources */,
 				750DCFB2CAB3FE36323936F9 /* SoundManager.swift in Sources */,

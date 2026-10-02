@@ -1,11 +1,12 @@
 import Foundation
 
-struct Friend: Identifiable {
+struct Friend: Identifiable, Codable {
     let id = UUID()
     var name: String
     var gender: Gender
     var relationship: Int
     var volatility: Int
+    var history: RelationshipHistory = RelationshipHistory()
 
     init(name: String, gender: Gender, relationship: Int, volatility: Int = Int.random(in: 0...100)) {
         self.name = name
@@ -14,8 +15,9 @@ struct Friend: Identifiable {
         self.volatility = volatility
     }
 
-    mutating func adjustRelationship(_ delta: Int) {
-        relationship = min(100, max(0, relationship + delta))
+    mutating func adjustRelationship(_ delta: Int, ceiling: Int = 100) {
+        let cap = delta > 0 ? ceiling : 100
+        relationship = min(cap, max(0, relationship + delta))
     }
 }
 
@@ -25,6 +27,9 @@ enum PersonRef: Hashable {
     /// A one-off NPC with no lasting relationship state — a gang recruiter,
     /// a stranger offering a job, etc.
     case stranger
+    /// The character's current romantic partner/spouse — singular, so no id
+    /// is needed.
+    case partner
 }
 
 enum SocialEventKind {

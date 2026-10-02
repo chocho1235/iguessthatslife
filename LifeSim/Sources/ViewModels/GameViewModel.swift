@@ -2,7 +2,13 @@ import Foundation
 
 @MainActor
 final class GameViewModel: ObservableObject {
-    @Published var character: Character?
+    @Published var character: Character? {
+        didSet {
+            if let character {
+                SaveManager.save(character)
+            }
+        }
+    }
     @Published var yearLog: [LogEntry] = []
     @Published var isGameOver: Bool = false
     @Published var pendingSocialEvent: SocialEvent?
@@ -11,6 +17,14 @@ final class GameViewModel: ObservableObject {
     /// this to flash the screen red and fire a haptic, independent of
     /// whatever log text or sound already describes the moment.
     @Published var attackTrigger: Int = 0
+
+    init() {
+        if let saved = SaveManager.load() {
+            character = saved
+            isGameOver = !saved.isAlive
+            yearLog = [LogEntry(text: "Welcome back, \(saved.firstName). Picking up where you left off at age \(saved.age).", isAlert: false)]
+        }
+    }
 
     private static let checkupOpeners: [[String]] = [
         ["Hi %name%, come on in — let's take a look at you.", "Alright, let me check your vitals..."],
@@ -67,6 +81,7 @@ final class GameViewModel: ObservableObject {
     func ageUp() {
         guard pendingSocialEvent == nil, pendingLegalTrouble == nil, var current = character, current.isAlive else { return }
         current.age += 1
+        resetRelationshipHistories(&current)
 
         if current.isInJail {
             var log: [LogEntry] = []
@@ -127,6 +142,7 @@ final class GameViewModel: ObservableObject {
         }
 
         handleFriends(&current, log: &log)
+        handlePartner(&current, log: &log)
         handleRelationshipEvents(&current, log: &log)
         handleConditions(&current, log: &log)
         rollForVision(&current, log: &log)
@@ -263,25 +279,51 @@ final class GameViewModel: ObservableObject {
         SoundManager.shared.play(.tap)
     }
 
+    /// `nil` means the action is allowed; otherwise this is the message to
+    /// show instead of performing it. Centralizes the shared yearly budget
+    /// that keeps every interaction from being spammed for free.
+    private func budgetMessage(_ character: Character, ref: PersonRef) -> String? {
+        guard let history = relationshipHistory(character, ref: ref) else { return nil }
+        guard history.remainingThisYear > 0 else {
+            return personName(character, ref: ref).map { "\($0) needs a break from you — try again next year." } ?? "They need a break — try again next year."
+        }
+        return nil
+    }
+
     @discardableResult
     func spendTime(with ref: PersonRef) -> String {
         guard var current = character else { return "" }
-        let gain = Int.random(in: 4...10)
+        if let blocked = budgetMessage(current, ref: ref) { return blocked }
+        let history = relationshipHistory(current, ref: ref)
+        let multiplier = (history?.diminishingMultiplier(for: "spendTime") ?? 1.0) * (history?.moodMultiplier(positive: true) ?? 1.0)
+        let gain = max(1, Int(Double(Int.random(in: 4...10)) * multiplier))
         adjustRelationship(&current, ref: ref, by: gain)
         current.stats.adjust(happiness: 2)
+        updateHistory(&current, ref: ref) { history in
+            history.recordUse("spendTime")
+            history.addResentment(-2)
+        }
         character = current
         SoundManager.shared.play(.friendJoin)
-        return "You spent quality time together. Relationship +\(gain)."
+        let moodNote = history?.isInGreatMood == true ? " They were in a great mood." : (history?.isInBadMood == true ? " They seemed a bit distant today." : "")
+        return "You spent quality time together. Relationship +\(gain).\(moodNote)"
     }
 
     @discardableResult
     func giveGift(with ref: PersonRef, cost: Int = 15) -> String {
         guard var current = character else { return "" }
+        if let blocked = budgetMessage(current, ref: ref) { return blocked }
         let localCost = localized(cost, for: current)
         guard current.cash >= localCost else { return "You don't have enough cash for a gift." }
         current.cash -= localCost
-        let gain = Int.random(in: 12...20)
+        let history = relationshipHistory(current, ref: ref)
+        let multiplier = (history?.diminishingMultiplier(for: "gift") ?? 1.0) * (history?.moodMultiplier(positive: true) ?? 1.0)
+        let gain = max(1, Int(Double(Int.random(in: 12...20)) * multiplier))
         adjustRelationship(&current, ref: ref, by: gain)
+        updateHistory(&current, ref: ref) { history in
+            history.recordUse("gift")
+            history.addResentment(-3)
+        }
         character = current
         SoundManager.shared.play(.success)
         return "You gave a $\(localCost) gift. Relationship +\(gain)."
@@ -290,25 +332,61 @@ final class GameViewModel: ObservableObject {
     @discardableResult
     func askForMoney(from ref: PersonRef) -> String {
         guard var current = character else { return "" }
+        if let blocked = budgetMessage(current, ref: ref) { return blocked }
         let relationship = relationshipValue(current, ref: ref)
-        if relationship >= 50 {
-            let amount = localized(Int.random(in: 5...25), for: current)
+        let history = relationshipHistory(current, ref: ref) ?? RelationshipHistory()
+        let name = personName(current, ref: ref) ?? "They"
+
+        // Resentment and mood turn a simple ask into real risk — the more
+        // you've leaned on someone, the more likely this blows up.
+        let askCount = history.uses(of: "askMoney")
+        let moodPenalty = history.isInBadMood ? 18 : (history.isInGreatMood ? -10 : 0)
+        let badOutcomeChance = min(0.85, Double(max(0, 40 - relationship + history.resentment + askCount * 15 + moodPenalty)) / 100.0)
+
+        updateHistory(&current, ref: ref) { $0.recordUse("askMoney") }
+
+        if Double.random(in: 0...1) >= badOutcomeChance, relationship >= 40 {
+            let multiplier = history.moodMultiplier(positive: true)
+            let amount = localized(Int(Double(Int.random(in: 5...25)) * multiplier), for: current)
             current.cash += amount
+            updateHistory(&current, ref: ref) { $0.addResentment(4) }
             character = current
             SoundManager.shared.play(.cash)
-            return "They happily gave you $\(amount)."
+            return "\(name) happily gave you $\(amount)."
+        }
+
+        // Something goes wrong — graded by how badly this has been abused.
+        let severity = Double.random(in: 0...1)
+        if severity < 0.15, history.resentment > 40 || askCount >= 2 {
+            let injuryName = inflictViolentInjury(&current, allowGunshot: false)
+            adjustRelationship(&current, ref: ref, by: -Int.random(in: 20...35))
+            updateHistory(&current, ref: ref) { $0.addResentment(15) }
+            character = current
+            SoundManager.shared.playSequence([.ouch, .alert])
+            return "\(name) snapped at being asked again and came at you. You came away with \(injuryName.lowercased())."
+        } else if severity < 0.5 {
+            adjustRelationship(&current, ref: ref, by: -Int.random(in: 10...20))
+            updateHistory(&current, ref: ref) { $0.addResentment(10) }
+            character = current
+            SoundManager.shared.play(.alert)
+            return "\(name) accused you of only using them for money. That stung — and it cost you the relationship."
         } else {
             character = current
             SoundManager.shared.play(.tap)
-            return "They said no — you're not close enough yet."
+            return "\(name) said no — you're not close enough yet."
         }
     }
 
     @discardableResult
     func prank(_ ref: PersonRef) -> String {
         guard var current = character else { return "" }
-        if Bool.random() {
-            let gain = Int.random(in: 2...8)
+        if let blocked = budgetMessage(current, ref: ref) { return blocked }
+        let history = relationshipHistory(current, ref: ref)
+        let successChance = 0.5 * (history?.moodMultiplier(positive: true) ?? 1.0)
+        updateHistory(&current, ref: ref) { $0.recordUse("prank") }
+        if Double.random(in: 0...1) < successChance {
+            let multiplier = history?.diminishingMultiplier(for: "prank") ?? 1.0
+            let gain = max(1, Int(Double(Int.random(in: 2...8)) * multiplier))
             adjustRelationship(&current, ref: ref, by: gain)
             current.stats.adjust(happiness: 5)
             character = current
@@ -317,6 +395,7 @@ final class GameViewModel: ObservableObject {
         } else {
             let loss = Int.random(in: 5...12)
             adjustRelationship(&current, ref: ref, by: -loss)
+            updateHistory(&current, ref: ref) { $0.addResentment(5) }
             character = current
             SoundManager.shared.play(.rejected)
             return "Your prank backfired badly. Relationship -\(loss)."
@@ -326,9 +405,16 @@ final class GameViewModel: ObservableObject {
     @discardableResult
     func argue(with ref: PersonRef) -> String {
         guard var current = character else { return "" }
-        let loss = Int.random(in: 15...25)
+        if let blocked = budgetMessage(current, ref: ref) { return blocked }
+        let history = relationshipHistory(current, ref: ref)
+        let multiplier = history?.moodMultiplier(positive: false) ?? 1.0
+        let loss = max(1, Int(Double(Int.random(in: 15...25)) * multiplier))
         adjustRelationship(&current, ref: ref, by: -loss)
         current.stats.adjust(happiness: -Int.random(in: 2...6))
+        updateHistory(&current, ref: ref) {
+            $0.recordUse("argue")
+            $0.addResentment(8)
+        }
         character = current
         SoundManager.shared.play(.alert)
         return "You got into a heated argument. Relationship -\(loss)."
@@ -337,10 +423,17 @@ final class GameViewModel: ObservableObject {
     @discardableResult
     func steal(from ref: PersonRef) -> String {
         guard var current = character else { return "" }
-        if Double.random(in: 0...1) < 0.4 {
+        if let blocked = budgetMessage(current, ref: ref) { return blocked }
+        let history = relationshipHistory(current, ref: ref)
+        let priorSteals = history?.uses(of: "steal") ?? 0
+        let catchChance = min(0.85, 0.4 + Double(priorSteals) * 0.2 + Double(history?.resentment ?? 0) / 300.0)
+        updateHistory(&current, ref: ref) { $0.recordUse("steal") }
+
+        if Double.random(in: 0...1) < catchChance {
             let loss = Int.random(in: 25...40)
             adjustRelationship(&current, ref: ref, by: -loss)
             current.stats.adjust(happiness: -Int.random(in: 5...15))
+            updateHistory(&current, ref: ref) { $0.addResentment(20) }
             if Double.random(in: 0...1) < 0.15, current.scars < 3 {
                 current.scars += 1
             }
@@ -352,6 +445,7 @@ final class GameViewModel: ObservableObject {
             current.cash += amount
             let loss = Int.random(in: 5...10)
             adjustRelationship(&current, ref: ref, by: -loss)
+            updateHistory(&current, ref: ref) { $0.addResentment(8) }
             character = current
             SoundManager.shared.play(.success)
             return "You secretly took $\(amount) without getting caught, but you feel a little guilty."
@@ -811,6 +905,8 @@ final class GameViewModel: ObservableObject {
             }
         case .friend(let id):
             character.friends.removeAll { $0.id == id }
+        case .partner:
+            character.partner = nil
         case .stranger:
             break
         }
@@ -1129,6 +1225,8 @@ final class GameViewModel: ObservableObject {
             return character.family.first(where: { $0.id == id })?.relationship ?? 0
         case .friend(let id):
             return character.friends.first(where: { $0.id == id })?.relationship ?? 0
+        case .partner:
+            return character.partner?.relationship ?? 0
         case .stranger:
             return 0
         }
@@ -1138,15 +1236,80 @@ final class GameViewModel: ObservableObject {
         switch ref {
         case .family(let id):
             if let index = character.family.firstIndex(where: { $0.id == id }) {
-                character.family[index].adjustRelationship(delta)
+                character.family[index].adjustRelationship(delta, ceiling: character.family[index].history.relationshipCeiling)
             }
         case .friend(let id):
             if let index = character.friends.firstIndex(where: { $0.id == id }) {
-                character.friends[index].adjustRelationship(delta)
+                character.friends[index].adjustRelationship(delta, ceiling: character.friends[index].history.relationshipCeiling)
+            }
+        case .partner:
+            if let ceiling = character.partner?.history.relationshipCeiling {
+                character.partner?.adjustRelationship(delta, ceiling: ceiling)
             }
         case .stranger:
             break
         }
+    }
+
+    /// How many of this year's shared interaction slots remain for this
+    /// person — spamming the same action (or any action) has a hard cap.
+    func remainingInteractions(for ref: PersonRef) -> Int {
+        guard let current = character else { return 0 }
+        return relationshipHistory(current, ref: ref)?.remainingThisYear ?? RelationshipHistory.yearlyBudget
+    }
+
+    func isInBadMood(_ ref: PersonRef) -> Bool {
+        guard let current = character else { return false }
+        return relationshipHistory(current, ref: ref)?.isInBadMood ?? false
+    }
+
+    func isInGreatMood(_ ref: PersonRef) -> Bool {
+        guard let current = character else { return false }
+        return relationshipHistory(current, ref: ref)?.isInGreatMood ?? false
+    }
+
+    private func relationshipHistory(_ character: Character, ref: PersonRef) -> RelationshipHistory? {
+        switch ref {
+        case .family(let id):
+            return character.family.first(where: { $0.id == id })?.history
+        case .friend(let id):
+            return character.friends.first(where: { $0.id == id })?.history
+        case .partner:
+            return character.partner?.history
+        case .stranger:
+            return nil
+        }
+    }
+
+    /// Applies a mutation to a person's interaction history regardless of
+    /// whether they're family, a friend, or a partner.
+    private func updateHistory(_ character: inout Character, ref: PersonRef, _ mutate: (inout RelationshipHistory) -> Void) {
+        switch ref {
+        case .family(let id):
+            if let index = character.family.firstIndex(where: { $0.id == id }) {
+                mutate(&character.family[index].history)
+            }
+        case .friend(let id):
+            if let index = character.friends.firstIndex(where: { $0.id == id }) {
+                mutate(&character.friends[index].history)
+            }
+        case .partner:
+            if character.partner != nil {
+                mutate(&character.partner!.history)
+            }
+        case .stranger:
+            break
+        }
+    }
+
+    private func resetRelationshipHistories(_ character: inout Character) {
+        for index in character.family.indices {
+            character.family[index].history.resetYearly()
+        }
+        for index in character.friends.indices {
+            character.friends[index].history.resetYearly()
+        }
+        character.partner?.history.resetYearly()
     }
 
     private func personName(_ character: Character, ref: PersonRef) -> String? {
@@ -1155,6 +1318,8 @@ final class GameViewModel: ObservableObject {
             return character.family.first(where: { $0.id == id })?.name
         case .friend(let id):
             return character.friends.first(where: { $0.id == id })?.name
+        case .partner:
+            return character.partner?.name
         case .stranger:
             return nil
         }
@@ -1442,6 +1607,92 @@ final class GameViewModel: ObservableObject {
             convictionChanceWithoutLawyer: min(0.92, 0.55 + Double(character.criminalRecord) * 0.04)
         )
         return LogEntry(text: "The job with \(event.actorName) went south. Alarms, sirens — you were caught at the scene.", isAlert: true)
+    }
+
+    func canAskOut(_ ref: PersonRef) -> Bool {
+        guard let current = character, current.partner == nil,
+              current.stage != .infant, current.stage != .child else { return false }
+        guard case .friend = ref else { return false }
+        return relationshipValue(current, ref: ref) >= 55
+    }
+
+    @discardableResult
+    func askOut(_ ref: PersonRef) -> String {
+        guard var current = character, current.partner == nil,
+              case .friend(let id) = ref,
+              let index = current.friends.firstIndex(where: { $0.id == id }) else { return "" }
+
+        let friend = current.friends[index]
+        let chance = min(0.9, 0.3 + Double(friend.relationship) / 150.0)
+        if Double.random(in: 0...1) < chance {
+            current.friends.remove(at: index)
+            current.partner = Partner(name: friend.name, gender: friend.gender, relationship: min(100, friend.relationship + 10))
+            current.stats.adjust(happiness: Int.random(in: 5...12))
+            character = current
+            SoundManager.shared.play(.cheer)
+            return "\(friend.name) said yes! You're officially together."
+        } else {
+            current.friends[index].adjustRelationship(-Int.random(in: 5...15))
+            character = current
+            SoundManager.shared.play(.rejected)
+            return "\(friend.name) turned you down. Awkward, but you're still friends."
+        }
+    }
+
+    @discardableResult
+    func propose() -> String {
+        guard var current = character, var partner = current.partner, !partner.isMarried else { return "" }
+
+        let chance = min(0.95, 0.3 + Double(partner.relationship) / 120.0)
+        if Double.random(in: 0...1) < chance {
+            partner.isMarried = true
+            partner.adjustRelationship(10)
+            current.partner = partner
+            current.stats.adjust(happiness: Int.random(in: 10...20))
+            character = current
+            SoundManager.shared.play(.achievement)
+            return "\(partner.name) said yes! You're married."
+        } else {
+            partner.adjustRelationship(-Int.random(in: 10...20))
+            current.partner = partner
+            character = current
+            SoundManager.shared.play(.rejected)
+            return "\(partner.name) wasn't ready for that. They turned down your proposal."
+        }
+    }
+
+    @discardableResult
+    func breakUp() -> String {
+        guard var current = character, let partner = current.partner else { return "" }
+        current.partner = nil
+        current.stats.adjust(happiness: -Int.random(in: 10...20))
+        character = current
+        SoundManager.shared.play(.heartbreak)
+        return partner.isMarried ? "You and \(partner.name) got divorced." : "You and \(partner.name) broke up."
+    }
+
+    private func handlePartner(_ character: inout Character, log: inout [LogEntry]) {
+        guard var partner = character.partner else { return }
+        partner.yearsTogether += 1
+
+        if Double.random(in: 0...1) < 0.3 {
+            partner.adjustRelationship(Int.random(in: -4...6))
+        }
+
+        if !partner.isMarried, partner.relationship <= 5, Double.random(in: 0...1) < 0.4 {
+            log.append(LogEntry(text: "\(partner.name) ended things with you. The relationship had run its course.", isAlert: true))
+            character.partner = nil
+            SoundManager.shared.play(.heartbreak)
+            return
+        }
+
+        if Double.random(in: 0...1) < 0.1 {
+            character.stats.adjust(happiness: Int.random(in: 2...6))
+            partner.adjustRelationship(Int.random(in: 2...6))
+            log.append(LogEntry(text: "You and \(partner.name) had a wonderful \(partner.isMarried ? "anniversary" : "date night").", isAlert: false))
+        }
+
+        character.partner = partner
     }
 
     private func handleFriends(_ character: inout Character, log: inout [LogEntry]) {

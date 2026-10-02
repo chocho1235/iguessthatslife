@@ -25,6 +25,9 @@ struct GameView: View {
                     statsCard
                     eventLog
                     actionBar
+                    if let partner = character.partner {
+                        PartnerView(partner: partner, stage: character.stage, country: character.country) { selectedPerson = $0 }
+                    }
                     FamilyView(family: character.family, country: character.country) { selectedPerson = $0 }
                     FriendsView(friends: character.friends, stage: character.stage, country: character.country) { selectedPerson = $0 }
                 }

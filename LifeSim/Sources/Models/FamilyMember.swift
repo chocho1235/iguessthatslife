@@ -1,21 +1,23 @@
 import Foundation
 
-enum Relation: String {
+enum Relation: String, Codable {
     case mother = "Mother"
     case father = "Father"
     case brother = "Brother"
     case sister = "Sister"
 }
 
-struct FamilyMember: Identifiable {
+struct FamilyMember: Identifiable, Codable {
     let id = UUID()
     var name: String
     var relation: Relation
     var relationship: Int
     var isAlive: Bool = true
+    var history: RelationshipHistory = RelationshipHistory()
 
-    mutating func adjustRelationship(_ delta: Int) {
-        relationship = min(100, max(0, relationship + delta))
+    mutating func adjustRelationship(_ delta: Int, ceiling: Int = 100) {
+        let cap = delta > 0 ? ceiling : 100
+        relationship = min(cap, max(0, relationship + delta))
     }
 
     var gender: Gender {

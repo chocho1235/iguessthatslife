@@ -44,7 +44,7 @@ struct Condition {
     var treatmentCost: Int { customTreatmentCost ?? severity.requiredService.cost }
 }
 
-struct ActiveCondition: Identifiable {
+struct ActiveCondition: Identifiable, Codable {
     let id = UUID()
     let conditionID: String
     var isDiagnosed: Bool = false

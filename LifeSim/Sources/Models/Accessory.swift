@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum AccessorySlot: String, CaseIterable, Hashable {
+enum AccessorySlot: String, CaseIterable, Hashable, Codable {
     case head = "Head"
     case face = "Face"
     case neck = "Neck"

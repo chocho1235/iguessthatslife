@@ -1,6 +1,6 @@
 import Foundation
 
-struct Job: Identifiable, Hashable {
+struct Job: Identifiable, Hashable, Codable {
     let id: String
     let title: String
     let category: String

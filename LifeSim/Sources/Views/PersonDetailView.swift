@@ -11,6 +11,20 @@ struct PersonDetailView: View {
         return max(1, Int(15 * CountryData.profile(for: country).salaryMultiplier))
     }
 
+    private var isMarried: Bool {
+        if case .partner = person.ref { return viewModel.character?.partner?.isMarried ?? false }
+        return false
+    }
+
+    private var remainingInteractions: Int { viewModel.remainingInteractions(for: person.ref) }
+    private var outOfInteractions: Bool { remainingInteractions <= 0 }
+
+    private var moodLabel: (text: String, color: Color)? {
+        if viewModel.isInGreatMood(person.ref) { return ("In a great mood this year", .green) }
+        if viewModel.isInBadMood(person.ref) { return ("Seems distant this year", .orange) }
+        return nil
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -29,6 +43,20 @@ struct PersonDetailView: View {
                     StatBarView(label: "Relationship", value: currentRelationship, color: .pink)
                         .padding(.horizontal)
 
+                    if person.isAlive {
+                        HStack(spacing: 8) {
+                            Label("\(remainingInteractions)/\(RelationshipHistory.yearlyBudget) interactions left this year", systemImage: "hourglass")
+                                .font(.caption.bold())
+                                .foregroundStyle(outOfInteractions ? .red : .secondary)
+                            if let moodLabel {
+                                Text("· \(moodLabel.text)")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(moodLabel.color)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
                     if let feedback {
                         Text(feedback)
                             .font(.subheadline.bold())
@@ -45,22 +73,37 @@ struct PersonDetailView: View {
                             .padding(.top, 8)
                     } else {
                         VStack(spacing: 12) {
-                            actionButton("Spend Time", icon: "clock.fill", tint: .blue) {
+                            if case .partner = person.ref {
+                                if !isMarried {
+                                    actionButton("Propose", icon: "heart.circle.fill", tint: .pink) {
+                                        viewModel.propose()
+                                    }
+                                }
+                                actionButton(isMarried ? "Divorce" : "Break Up", icon: "heart.slash.fill", tint: .gray) {
+                                    viewModel.breakUp()
+                                }
+                            } else if viewModel.canAskOut(person.ref) {
+                                actionButton("Ask Out", icon: "heart.fill", tint: .pink) {
+                                    viewModel.askOut(person.ref)
+                                }
+                            }
+
+                            actionButton("Spend Time", icon: "clock.fill", tint: .blue, disabled: outOfInteractions) {
                                 viewModel.spendTime(with: person.ref)
                             }
-                            actionButton("Give Gift ($\(giftCost))", icon: "gift.fill", tint: .purple, disabled: (viewModel.character?.cash ?? 0) < giftCost) {
+                            actionButton("Give Gift ($\(giftCost))", icon: "gift.fill", tint: .purple, disabled: outOfInteractions || (viewModel.character?.cash ?? 0) < giftCost) {
                                 viewModel.giveGift(with: person.ref, cost: giftCost)
                             }
-                            actionButton("Ask for Money", icon: "dollarsign.circle.fill", tint: .green) {
+                            actionButton("Ask for Money", icon: "dollarsign.circle.fill", tint: .green, disabled: outOfInteractions) {
                                 viewModel.askForMoney(from: person.ref)
                             }
-                            actionButton("Prank Them", icon: "theatermasks.fill", tint: .orange) {
+                            actionButton("Prank Them", icon: "theatermasks.fill", tint: .orange, disabled: outOfInteractions) {
                                 viewModel.prank(person.ref)
                             }
-                            actionButton("Argue", icon: "flame.fill", tint: .red) {
+                            actionButton("Argue", icon: "flame.fill", tint: .red, disabled: outOfInteractions) {
                                 viewModel.argue(with: person.ref)
                             }
-                            actionButton("Steal From Them", icon: "hand.raised.slash.fill", tint: .gray) {
+                            actionButton("Steal From Them", icon: "hand.raised.slash.fill", tint: .gray, disabled: outOfInteractions) {
                                 viewModel.steal(from: person.ref)
                             }
                         }
@@ -100,6 +143,8 @@ struct PersonDetailView: View {
             return character.family.first(where: { $0.id == id })?.relationship ?? person.relationship
         case .friend(let id):
             return character.friends.first(where: { $0.id == id })?.relationship ?? person.relationship
+        case .partner:
+            return character.partner?.relationship ?? person.relationship
         case .stranger:
             return person.relationship
         }

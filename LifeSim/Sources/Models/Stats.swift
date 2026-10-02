@@ -1,6 +1,6 @@
 import Foundation
 
-struct Stats {
+struct Stats: Codable {
     var health: Int
     var happiness: Int
     var smarts: Int
