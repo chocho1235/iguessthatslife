@@ -62,6 +62,7 @@
 		9F923B2C45BA402F3D2FEBFD /* CheckupCutsceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E85E543CB1F0D833B1E3AE4 /* CheckupCutsceneView.swift */; };
 		A844649CDBE605525F3A31A8 /* CasinoArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE09A97C3995CB90689D7001 /* CasinoArtwork.swift */; };
 		AF0915785488327A829E5D57 /* Accessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5418A06147AECE762D53415A /* Accessory.swift */; };
+		B22D042979F9FE989B0B778E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AABE25E5D941F3CCCCE1E441 /* Assets.xcassets */; };
 		B2A85308AB72B5622FC835F8 /* PersonDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAFAA6748BD5B24E4CDBE78 /* PersonDetailView.swift */; };
 		B595ACD02E372299A81F9D5B /* MigrationQuizView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0E4DE72C3AB269C72E314B /* MigrationQuizView.swift */; };
 		B5FEDC8269674D94F4A300B0 /* CheckupOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 314E4F47907ED17B31F664A5 /* CheckupOutcome.swift */; };
@@ -137,6 +138,7 @@
 		A49299338383F60CA568A57C /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
 		A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Weapon.swift; sourceTree = "<group>"; };
 		AA3FACFF17D809F9B72BDB93 /* StatBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatBarView.swift; sourceTree = "<group>"; };
+		AABE25E5D941F3CCCCE1E441 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AF2C2AD846375E5CEBEEBF67 /* CasinoGameScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasinoGameScreens.swift; sourceTree = "<group>"; };
 		B47B50931C61679879909248 /* InterviewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterviewData.swift; sourceTree = "<group>"; };
 		B5A8CB425040B5FD0D99AE0B /* RouletteBet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouletteBet.swift; sourceTree = "<group>"; };
@@ -240,6 +242,7 @@
 		73D166D464968CADB5EDD41E /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				AABE25E5D941F3CCCCE1E441 /* Assets.xcassets */,
 				498BFF093C120E69B110D613 /* LifeSimApp.swift */,
 				59719BAFB4EBB283CE00FF6B /* Audio */,
 				F28BBAFBD519C4B21295CA12 /* Data */,
@@ -348,7 +351,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					9D98CF5BC0A213AA5D5B5688 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = Y4B73HVVHL;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -377,6 +380,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B22D042979F9FE989B0B778E /* Assets.xcassets in Resources */,
 				2919F199E0EDA75E7B299B1F /* casino_intro_music.wav in Resources */,
 				20992B3CA4319E8CCA8991CC /* casino_intro_sfx.wav in Resources */,
 			);
@@ -506,7 +510,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = Y4B73HVVHL;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -588,7 +592,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = Y4B73HVVHL;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

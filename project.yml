@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "Y4B73HVVHL"
     CODE_SIGN_STYLE: Automatic
 targets:
   LifeSim:
