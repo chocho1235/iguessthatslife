@@ -27,6 +27,10 @@ enum AccessoryData {
         Accessory(id: "stud_earrings", name: "Stud Earrings", slot: .ears, price: 22, color: .white),
         Accessory(id: "hoop_earrings", name: "Hoop Earrings", slot: .ears, price: 26, color: .yellow),
 
+        // Sold in the Clothing shop. Covers your face, so it takes the face
+        // slot and hides you from witnesses during a crime.
+        Accessory(id: "balaclava", name: "Black Balaclava", slot: .face, price: 20, color: Color(white: 0.1), isClothing: true),
+
         Accessory(id: "watch", name: "Wrist Watch", slot: .wrist, price: 45, color: .black),
         Accessory(id: "bracelet", name: "Bracelet", slot: .wrist, price: 20, color: .yellow),
     ]
@@ -34,6 +38,10 @@ enum AccessoryData {
     static let byID: [String: Accessory] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
 
     static func items(for slot: AccessorySlot) -> [Accessory] {
-        all.filter { $0.slot == slot }
+        all.filter { $0.slot == slot && !$0.isClothing }
+    }
+
+    static var clothingItems: [Accessory] {
+        all.filter(\.isClothing)
     }
 }

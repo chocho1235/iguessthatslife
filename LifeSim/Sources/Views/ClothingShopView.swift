@@ -19,6 +19,16 @@ struct ClothingShopView: View {
                         }
                     }
                 }
+
+                Section {
+                    ForEach(AccessoryData.clothingItems) { item in
+                        maskRow(for: item)
+                    }
+                } header: {
+                    Text("Masks")
+                } footer: {
+                    Text("A balaclava makes it much harder for witnesses to pick you out, but it takes the place of your glasses.")
+                }
             }
             .navigationTitle("Clothing")
             .navigationBarTitleDisplayMode(.inline)
@@ -63,6 +73,44 @@ struct ClothingShopView: View {
             } else {
                 Button("Buy") {
                     viewModel.purchaseOutfit(item)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(character.cash < item.price)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func maskRow(for item: Accessory) -> some View {
+        let owned = character.ownedAccessoryIDs.contains(item.id)
+        let equipped = character.equippedAccessoryIDs[item.slot] == item.id
+
+        HStack(spacing: 14) {
+            AvatarView(seed: "preview", gender: .male, stage: .adult, equipped: [item], equippedOutfit: character.equippedOutfit)
+                .frame(width: 54, height: 54)
+                .background(Color(.tertiarySystemBackground))
+                .clipShape(Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name).font(.subheadline.bold())
+                Text(owned ? "Lowers your chance of being identified" : "$\(item.price)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if owned {
+                Button(equipped ? "Take Off" : "Wear") {
+                    if equipped {
+                        viewModel.unequip(slot: item.slot)
+                    } else {
+                        viewModel.equip(item)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .tint(equipped ? .green : .blue)
+            } else {
+                Button("Buy") {
+                    viewModel.purchase(item)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(character.cash < item.price)

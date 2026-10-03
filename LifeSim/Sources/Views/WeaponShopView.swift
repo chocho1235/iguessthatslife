@@ -10,6 +10,12 @@ struct WeaponShopView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Text("Better weapons help in hold-ups and fights. Carrying an illegal one is only a problem if the police search you.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 if let feedback {
                     Section {
                         Text(feedback)
@@ -83,7 +89,10 @@ struct WeaponShopView: View {
                             .clipShape(Capsule())
                     }
                 }
-                Text(weapon.isIllegal ? "Buying this is a crime — adds to your record." : "$\(weapon.price)")
+                Text("Threat \(weapon.power)/10\(weapon.isFirearm ? " · Firearm" : "")")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.orange)
+                Text(weapon.isIllegal ? "Get caught with this and it's a charge." : "Legal to own.")
                     .font(.caption2)
                     .foregroundStyle(weapon.isIllegal ? .red : .secondary)
             }

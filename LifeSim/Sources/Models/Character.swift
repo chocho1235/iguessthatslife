@@ -38,7 +38,13 @@ struct Character: Codable {
     var scars: Int = 0
     var gangName: String?
     var weaponName: String?
+    /// Points from actual court convictions only. Committing a crime and
+    /// getting away with it never touches this.
     var criminalRecord: Int = 0
+    /// Stored as optionals so saves from before these existed still load.
+    var convictionList: [String]? = nil
+    var policeHeatValue: Int? = nil
+    var openCaseList: [OpenCase]? = nil
     /// How many robberies this character has attempted — the police get
     /// better at catching up with you the more you push your luck.
     var robberyCount: Int = 0
@@ -50,6 +56,23 @@ struct Character: Codable {
     var isFugitive: Bool = false
 
     var fullName: String { "\(firstName) \(lastName)" }
+    var convictions: [String] {
+        get { convictionList ?? [] }
+        set { convictionList = newValue }
+    }
+    /// 0...100 — how hard the police are looking at you right now. Rises
+    /// with every crime, cools off a little each year.
+    var policeHeat: Int {
+        get { policeHeatValue ?? 0 }
+        set { policeHeatValue = min(100, max(0, newValue)) }
+    }
+    var openCases: [OpenCase] {
+        get { openCaseList ?? [] }
+        set { openCaseList = newValue }
+    }
+    var hasCriminalRecord: Bool { criminalRecord > 0 }
+    var isMasked: Bool { equippedAccessoryIDs[.face] == "balaclava" }
+    var weapon: Weapon? { weaponName.flatMap { name in WeaponData.all.first { $0.name == name } } }
     var stage: LifeStage { LifeStage.forAge(age) }
     var isInJail: Bool { jailYearsRemaining > 0 }
     var equippedAccessories: [Accessory] {

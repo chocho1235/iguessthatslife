@@ -810,6 +810,29 @@ struct AvatarView: View {
             bridge.addLine(to: pt(106, 88, scale))
             context.stroke(bridge, with: .color(.black.opacity(0.7)), lineWidth: 1.5 * scale)
 
+        case "balaclava":
+            // Knit mask over the whole head and ears, with an eye slit and a
+            // small mouth hole.
+            let knit = accessory.color
+            context.fill(Path(ellipseIn: rect(46, 64, 20, 36, scale)), with: .color(knit))
+            context.fill(Path(ellipseIn: rect(134, 64, 20, 36, scale)), with: .color(knit))
+            context.fill(Path(ellipseIn: rect(52, 26, 96, 114, scale)), with: .color(knit))
+            context.fill(Path(roundedRect: rect(60, 132, 80, 18, scale), cornerRadius: 8 * scale), with: .color(knit))
+            for y in stride(from: CGFloat(40), through: CGFloat(130), by: 9) {
+                var rib = Path()
+                rib.move(to: pt(62, y, scale))
+                rib.addQuadCurve(to: pt(138, y, scale), control: pt(100, y + 4, scale))
+                context.stroke(rib, with: .color(.white.opacity(0.06)), lineWidth: 1.5 * scale)
+            }
+            context.fill(Path(roundedRect: rect(66, 78, 68, 22, scale), cornerRadius: 11 * scale), with: .color(skinTone))
+            drawEye(&context, cx: 83, cy: 88, scale: scale)
+            drawEye(&context, cx: 117, cy: 88, scale: scale)
+            context.fill(Path(ellipseIn: rect(91, 108, 18, 12, scale)), with: .color(skinTone.darker(by: 0.08)))
+            var lips = Path()
+            lips.move(to: pt(94, 114, scale))
+            lips.addQuadCurve(to: pt(106, 114, scale), control: pt(100, 118, scale))
+            context.stroke(lips, with: .color(Color(red: 0.42, green: 0.16, blue: 0.18).opacity(0.7)), lineWidth: 2 * scale)
+
         case "eyepatch":
             context.fill(Path(roundedRect: rect(106, 78, 26, 20, scale), cornerRadius: 4 * scale), with: .color(.black))
             var strap = Path()

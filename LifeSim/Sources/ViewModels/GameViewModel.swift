@@ -88,6 +88,7 @@ final class GameViewModel: ObservableObject {
             var log: [LogEntry] = []
             applyYearlyFinances(&current, log: &log)
             handleJailYear(&current, log: &log)
+            current.policeHeat -= 12
             handleConditions(&current, log: &log)
             applyNaturalDrift(&current)
             checkForDeath(&current, log: &log)
@@ -151,6 +152,7 @@ final class GameViewModel: ObservableObject {
         handleConditions(&current, log: &log)
         rollForVision(&current, log: &log)
         handleCareer(&current, log: &log)
+        handlePolicing(&current, log: &log)
         applyNaturalDrift(&current)
         checkForDeath(&current, log: &log)
 
@@ -159,6 +161,8 @@ final class GameViewModel: ObservableObject {
         if !current.isAlive {
             isGameOver = true
             SoundManager.shared.play(.death)
+        } else if pendingLegalTrouble != nil {
+            SoundManager.shared.playSequence([.ageUp, .alert])
         } else if pendingSocialEvent != nil {
             // A decision popup is about to appear — follow the normal
             // age-up sound with a distinct notification chime.
@@ -676,13 +680,10 @@ final class GameViewModel: ObservableObject {
 
         current.cash -= cost
         current.weaponName = weapon.name
-        if weapon.isIllegal {
-            current.criminalRecord += 1
-        }
         character = current
         SoundManager.shared.play(weapon.isIllegal ? .danger : .cash)
         return weapon.isIllegal
-            ? "You illegally bought a \(weapon.name) for $\(cost). That's now on your criminal record."
+            ? "You bought a \(weapon.name) off the books for $\(cost). If the police ever search you, that's a charge."
             : "You bought a \(weapon.name) for $\(cost)."
     }
 
@@ -709,10 +710,10 @@ final class GameViewModel: ObservableObject {
         if Double.random(in: 0...1) < chance {
             let name = gangNames.randomElement()!
             current.gangName = name
-            current.criminalRecord += 1
+            current.policeHeat += 8
             current.stats.adjust(happiness: Int.random(in: 2...8), smarts: -Int.random(in: 0...2))
             SoundManager.shared.play(.danger)
-            return commitCrimeResult(current, text: "You joined \(name). People treat you differently now.", isAlert: true)
+            return commitCrimeResult(current, text: "You joined \(name). People treat you differently now, and the police have started to notice.", isAlert: true)
         }
 
         let injuryName = inflictViolentInjury(&current, allowGunshot: false)
@@ -775,14 +776,15 @@ final class GameViewModel: ObservableObject {
         guard current.age >= 13 else { return "You must be at least 13 to attempt a robbery." }
 
         current.robberyCount += 1
+        let crime: CrimeType = scenario == .houseBurglary ? .burglary : .pickpocketing
+        let masked = current.isMasked
         var summary: String
         var injured = false
-        let scenarioNoun = scenario == .houseBurglary ? "house" : "robbery"
 
         if success {
             let amount = lootValue.map { localized($0, for: current) } ?? localized(Int.random(in: 35...380), for: current)
             current.cash += amount
-            current.criminalRecord += 1
+            current.policeHeat += scenario == .houseBurglary ? 10 : 6
             current.stats.adjust(happiness: -Int.random(in: 1...6), smarts: 1)
             summary = scenario == .houseBurglary
                 ? "You slipped out of the house with jewelry and cash worth $\(amount)."
@@ -790,73 +792,392 @@ final class GameViewModel: ObservableObject {
         } else {
             let fine = min(current.cash, localized(Int.random(in: 30...240), for: current))
             current.cash -= fine
-            current.criminalRecord += 2
+            current.policeHeat += 10
             let injuryName = inflictViolentInjury(&current, allowGunshot: false)
             current.stats.adjust(happiness: -Int.random(in: 5...12))
             injured = true
             summary = scenario == .houseBurglary
                 ? "The homeowner came back and caught you inside. You lost $\(fine) in the scuffle and came away with \(injuryName.lowercased())."
-                : "You were spotted during the \(scenarioNoun) and they fought back. You lost $\(fine) and came away with \(injuryName.lowercased())."
+                : "You were spotted and they fought back. You lost $\(fine) and came away with \(injuryName.lowercased())."
         }
 
-        // The more robberies you've pulled and the longer your record, the
-        // more likely a police squad is already closing in — independent of
-        // whether this particular heist went smoothly.
-        let fugitiveBonus = current.isFugitive ? 0.15 : 0
-        let arrestChance = min(0.9, 0.04 + Double(current.robberyCount) * 0.035 + Double(current.criminalRecord) * 0.02 + fugitiveBonus)
-        if Double.random(in: 0...1) < arrestChance {
+        // Getting spotted makes an arrest far more likely, but even a clean
+        // job can draw a squad car if you've been pushing your luck.
+        let chance = arrestChance(current, base: success ? 0.04 + Double(current.robberyCount) * 0.01 : 0.4, masked: masked)
+        if Double.random(in: 0...1) < chance {
             summary += " Moments later, a police squad caught up with you and placed you under arrest."
-            let result = commitCrimeResult(current, text: summary, isAlert: true)
+            arrest(&current, for: crime, caughtAtScene: !success, story: success ? "A patrol car picked you up a few streets away." : "The police arrived before you could get away.")
             SoundManager.shared.playSequence(injured ? [.ouch, .alert] : [.alert])
-            pendingLegalTrouble = LegalTrouble(
-                chargeDescription: "Armed Robbery",
-                bailCost: localized(Int.random(in: 250...900), for: current),
-                lawyerCost: localized(Int.random(in: 6000...15000), for: current),
-                confiscatesWeaponWithoutLawyer: current.weaponName != nil,
-                jailYearsIfConvicted: Int.random(in: 1...3),
-                convictionChanceWithoutLawyer: min(0.9, 0.35 + Double(current.criminalRecord) * 0.05)
-            )
-            return result
+            return commitCrimeResult(current, text: summary, isAlert: true)
         }
 
+        if !success {
+            summary += " You got away before the police showed up."
+        }
+        if masked {
+            summary += " Your balaclava kept your face hidden."
+        }
+        openCaseMaybe(&current, crime: crime, chance: success ? 0.25 : 0.6, masked: masked)
         SoundManager.shared.playSequence(injured ? [.ouch, .alert] : [.success])
         return commitCrimeResult(current, text: summary, isAlert: true)
     }
 
-    /// Hiring a lawyer costs far more than bail, but reliably beats the
-    /// charge down to a fine. Go without one and there's a real chance of an
-    /// actual prison sentence, not just a criminal-record bump.
-    func resolveLegalTrouble(hireLawyer: Bool) -> String {
-        guard let trouble = pendingLegalTrouble, var current = character else { return "" }
-        pendingLegalTrouble = nil
+    @discardableResult
+    func shoplift() -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 10 else { return "You're too young to shoplift." }
+        let masked = current.isMasked
 
-        let text: String
-        if hireLawyer, current.cash >= trouble.lawyerCost {
-            current.cash -= trouble.lawyerCost
-            current.criminalRecord += 1
-            current.stats.adjust(happiness: -Int.random(in: 1...4))
-            text = "Your lawyer got the \(trouble.chargeDescription) charge reduced to a slap on the wrist, for a staggering $\(trouble.lawyerCost) in fees."
-            SoundManager.shared.play(.cash)
-        } else {
-            let bail = min(current.cash, trouble.bailCost)
-            current.cash -= bail
-            current.criminalRecord += 3
-            if trouble.confiscatesWeaponWithoutLawyer {
-                current.weaponName = nil
+        // Walking into a shop in a balaclava gets you watched the whole time.
+        let successChance = (masked ? 0.35 : 0.72) + Double(current.stats.smarts) / 1000.0
+        if Double.random(in: 0...1) < successChance {
+            let loot = localized(Int.random(in: 15...160), for: current)
+            current.cash += loot
+            current.policeHeat += 3
+            current.stats.adjust(happiness: Int.random(in: 0...3))
+            openCaseMaybe(&current, crime: .shoplifting, chance: 0.12, masked: false)
+            SoundManager.shared.play(.success)
+            return commitCrimeResult(current, text: "You slipped some stuff into your bag and walked out. It sold for $\(loot).", isAlert: false)
+        }
+
+        current.policeHeat += 5
+        let maskNote = masked ? " Wearing a balaclava into a shop was not subtle." : ""
+        if Double.random(in: 0...1) < 0.6 {
+            arrest(&current, for: .shoplifting, caughtAtScene: true, story: "Store security held you until the police arrived.")
+            SoundManager.shared.play(.alert)
+            return commitCrimeResult(current, text: "Store security grabbed you at the door and called the police.\(maskNote)", isAlert: true)
+        }
+        current.stats.adjust(happiness: -Int.random(in: 2...5))
+        SoundManager.shared.play(.rejected)
+        return commitCrimeResult(current, text: "Security caught you, took the stuff back and banned you from the store. No police this time.\(maskNote)", isAlert: true)
+    }
+
+    @discardableResult
+    func stealCar() -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 16 else { return "You must be at least 16 to steal a car." }
+        let masked = current.isMasked
+
+        let toolBonus = ["crowbar", "sledgehammer"].contains(current.weapon?.id ?? "") ? 0.1 : 0
+        let successChance = min(0.85, 0.42 + Double(current.stats.smarts) / 350.0 + toolBonus)
+        if Double.random(in: 0...1) < successChance {
+            let value = localized(Int.random(in: 1_500...12_000), for: current)
+            current.cash += value
+            current.policeHeat += 12
+            current.stats.adjust(happiness: Int.random(in: 2...6))
+            if Double.random(in: 0...1) < arrestChance(current, base: 0.06, masked: masked) {
+                arrest(&current, for: .carTheft, caughtAtScene: false, story: "A traffic camera caught the plates and the police tracked you down.")
+                SoundManager.shared.playSequence([.cash, .alert])
+                return commitCrimeResult(current, text: "You sold the car to a chop shop for $\(value), but a traffic camera caught the plates. The police tracked you down.", isAlert: true)
             }
-            if Double.random(in: 0...1) < trouble.convictionChanceWithoutLawyer {
-                current.jailYearsRemaining += trouble.jailYearsIfConvicted
-                current.stats.adjust(happiness: -Int.random(in: 10...20))
-                text = "Without a lawyer, the \(trouble.chargeDescription) charge stuck. You were convicted and sentenced to \(trouble.jailYearsIfConvicted) year\(trouble.jailYearsIfConvicted == 1 ? "" : "s") in prison."
-                SoundManager.shared.playSequence([.alert, .death])
-            } else {
-                current.stats.adjust(happiness: -Int.random(in: 8...16))
-                text = "You couldn't afford a lawyer, but caught a break — $\(bail) in bail, a heavier criminal record\(trouble.confiscatesWeaponWithoutLawyer ? ", and your weapon confiscated as evidence" : ""), and no prison time."
-                SoundManager.shared.play(.alert)
+            openCaseMaybe(&current, crime: .carTheft, chance: 0.35, masked: masked)
+            SoundManager.shared.play(.cash)
+            return commitCrimeResult(current, text: "You hot-wired a car and sold it to a chop shop for $\(value).", isAlert: true)
+        }
+
+        current.policeHeat += 8
+        if Double.random(in: 0...1) < arrestChance(current, base: 0.45, masked: masked) {
+            arrest(&current, for: .carTheft, caughtAtScene: true, story: "The car alarm went off and a patrol car was right around the corner.")
+            SoundManager.shared.play(.alert)
+            return commitCrimeResult(current, text: "The car alarm screamed and a patrol car pulled up before you got the door open. You were arrested.", isAlert: true)
+        }
+        SoundManager.shared.play(.rejected)
+        return commitCrimeResult(current, text: "The car alarm went off and you ran. Nobody followed you, this time.", isAlert: true)
+    }
+
+    @discardableResult
+    func armedRobbery() -> String {
+        guard var current = character else { return "" }
+        guard current.age >= 16 else { return "You must be at least 16 for an armed robbery." }
+        guard let weapon = current.weapon else { return "You need a weapon to hold up a store. Visit the Weapons shop." }
+        let masked = current.isMasked
+
+        let successChance = min(0.9, 0.3 + Double(weapon.power) * 0.05 + Double(current.stats.smarts) / 600.0 + (current.gangName == nil ? 0 : 0.06))
+        if Double.random(in: 0...1) < successChance {
+            let take = Int(Double(localized(Int.random(in: 300...2_500), for: current)) * (1 + Double(weapon.power) / 10))
+            current.cash += take
+            current.policeHeat += 20
+            current.stats.adjust(happiness: -Int.random(in: 0...4))
+            if Double.random(in: 0...1) < arrestChance(current, base: 0.12, masked: masked) {
+                arrest(&current, for: .armedRobbery, caughtAtScene: false, story: "Security footage led the police straight to you.")
+                SoundManager.shared.playSequence([.cash, .alert])
+                return commitCrimeResult(current, text: "You held up a store with your \(weapon.name) and got away with $\(take), but the cameras got a good look at you. Police picked you up that night.", isAlert: true)
+            }
+            openCaseMaybe(&current, crime: .armedRobbery, chance: 0.5, masked: masked)
+            SoundManager.shared.play(.cash)
+            let maskNote = masked ? " The balaclava kept your face off the cameras." : ""
+            return commitCrimeResult(current, text: "You held up a store with your \(weapon.name) and walked out with $\(take).\(maskNote)", isAlert: true)
+        }
+
+        current.policeHeat += 15
+        let injuryName = inflictViolentInjury(&current, allowGunshot: Double.random(in: 0...1) < 0.35)
+        current.stats.adjust(happiness: -Int.random(in: 6...12))
+        attackTrigger += 1
+        if Double.random(in: 0...1) < arrestChance(current, base: 0.55, masked: masked) {
+            arrest(&current, for: .armedRobbery, caughtAtScene: true, story: "The clerk hit the panic button and police swarmed the store.")
+            SoundManager.shared.playSequence([.ouch, .alert])
+            return commitCrimeResult(current, text: "The clerk fought back, leaving you with \(injuryName.lowercased()), and hit the panic button. Police swarmed the store.", isAlert: true)
+        }
+        SoundManager.shared.playSequence([.ouch, .alert])
+        return commitCrimeResult(current, text: "The clerk fought back and you fled empty handed with \(injuryName.lowercased()).", isAlert: true)
+    }
+
+    @discardableResult
+    func layLow() -> String {
+        guard var current = character else { return "" }
+        guard current.policeHeat > 0 else { return "The police aren't looking for you. No need to hide." }
+        let cost = localized(400, for: current)
+        guard current.cash >= cost else { return "You need $\(cost) to lie low for a while." }
+        current.cash -= cost
+        current.policeHeat -= 25
+        current.stats.adjust(happiness: -Int.random(in: 1...4))
+        SoundManager.shared.play(.tap)
+        return commitCrimeResult(current, text: "You spent $\(cost) hiding out and staying off the streets. The police have cooled off a bit.", isAlert: false)
+    }
+
+    // MARK: - Police and court
+
+    private func arrestChance(_ character: Character, base: Double, masked: Bool) -> Double {
+        var chance = base + Double(character.policeHeat) / 250.0 + (character.isFugitive ? 0.15 : 0)
+        if masked { chance *= 0.6 }
+        return min(0.92, max(0.01, chance))
+    }
+
+    /// A crime you got away with might still be on the police's desk. Each
+    /// year it could lead back to you, until it goes cold.
+    private func openCaseMaybe(_ character: inout Character, crime: CrimeType, chance: Double, masked: Bool) {
+        let finalChance = masked ? chance * 0.6 : chance
+        guard Double.random(in: 0...1) < finalChance else { return }
+        if let index = character.openCases.firstIndex(where: { $0.crime == crime }) {
+            character.openCases[index].yearsOpen = 0
+        } else {
+            character.openCases.append(OpenCase(crime: crime))
+        }
+    }
+
+    /// Puts the character in handcuffs: searches them, seizes weapons and
+    /// opens the court case that the legal sheet walks through.
+    private func arrest(_ character: inout Character, for crime: CrimeType, caughtAtScene: Bool, story: String) {
+        var charges = [crime]
+        var seized: String?
+        if let weapon = character.weapon {
+            let violent: Set<CrimeType> = [.armedRobbery, .bankRobbery, .assault, .attemptedMurder, .murder]
+            if weapon.isIllegal {
+                if crime != .weaponPossession && crime != .weaponSmuggling {
+                    charges.append(.weaponPossession)
+                }
+                seized = weapon.name
+                character.weaponName = nil
+            } else if violent.contains(crime) {
+                seized = weapon.name
+                character.weaponName = nil
+            }
+        }
+        character.openCases.removeAll { $0.crime == crime }
+        character.policeHeat += 10
+
+        let maskable = !caughtAtScene && character.isMasked
+        var evidence = crime.baseEvidence
+            + (caughtAtScene ? 0.25 : 0)
+            + Double(character.policeHeat) / 400.0
+            - (maskable ? 0.15 : 0)
+            + Double.random(in: -0.1...0.1)
+        evidence = min(0.95, max(0.15, evidence))
+
+        let lead = charges.max { $0.severity < $1.severity } ?? crime
+        let bail = localized(Int.random(in: lead.severity.bailRange), for: character)
+        let privateLawyer = localized(Int.random(in: lead.severity.privateLawyerRange), for: character)
+        pendingLegalTrouble = LegalTrouble(
+            charges: charges,
+            evidence: evidence,
+            bailAmount: bail,
+            bondsmanFee: bail == 0 ? 0 : max(1, bail * 15 / 100),
+            privateLawyerCost: privateLawyer,
+            topAttorneyCost: Int(Double(privateLawyer) * lead.severity.topAttorneyMultiplier),
+            seizedWeapon: seized,
+            arrestStory: story
+        )
+    }
+
+    func lawyerCost(_ lawyer: LawyerOption, for trouble: LegalTrouble) -> Int {
+        switch lawyer {
+        case .selfRepresented, .publicDefender: return 0
+        case .privateLawyer: return trouble.privateLawyerCost
+        case .topAttorney: return trouble.topAttorneyCost
+        }
+    }
+
+    /// Chance of a guilty verdict if you plead not guilty and go to trial.
+    func trialConvictionChance(_ lawyer: LawyerOption, for trouble: LegalTrouble) -> Double {
+        let record = Double(character?.criminalRecord ?? 0)
+        var chance = trouble.evidence * lawyer.evidenceWeight + record * 0.015
+        if lawyer == .publicDefender { chance += 0.08 }
+        if lawyer == .selfRepresented { chance -= Double(character?.stats.smarts ?? 50) / 1000.0 }
+        if character?.isFugitive == true { chance += 0.1 }
+        return min(0.97, max(0.03, chance))
+    }
+
+    /// Rolled once when the case reaches the courtroom. Better lawyers read
+    /// the case right; a public defender sometimes gets it badly wrong.
+    func lawyerAdvice(_ lawyer: LawyerOption, for trouble: LegalTrouble) -> LawyerAdvice? {
+        guard lawyer != .selfRepresented else { return nil }
+        let smartCallIsGuilty = trialConvictionChance(lawyer, for: trouble) > 0.6
+        let readsItRight = Double.random(in: 0...1) < lawyer.adviceAccuracy
+        let recommendsGuilty = readsItRight ? smartCallIsGuilty : !smartCallIsGuilty
+
+        let line: String
+        switch (lawyer, recommendsGuilty) {
+        case (.publicDefender, true):
+            line = "Uh, I skimmed your file on the way in. Looks bad? I'd just plead guilty and get it over with."
+        case (.publicDefender, false):
+            line = "I haven't really had time to read this... but plead not guilty, I guess? Let's see what happens."
+        case (.topAttorney, true):
+            line = "I'll be straight with you. Their evidence is airtight. Plead guilty and I'll get your sentence cut in half."
+        case (.topAttorney, false):
+            line = "Their case is full of holes and I know every one of them. Plead not guilty. Leave the rest to me."
+        case (_, true):
+            line = "The evidence is \(trouble.evidenceLabel.lowercased()). If we fight this we'll probably lose. My advice is to plead guilty for a lighter sentence."
+        case (_, false):
+            line = "The evidence is only \(trouble.evidenceLabel.lowercased()). I think we can win this. Plead not guilty."
+        }
+        return LawyerAdvice(recommendsGuilty: recommendsGuilty, line: line)
+    }
+
+    /// Runs the whole procedure in one go: the bail hearing, the lawyer's
+    /// fee, the trial and the sentence. The legal sheet stays up to play
+    /// the courtroom cutscene until `closeCourtCase()` is called, and the
+    /// cutscene plays the verdict sounds when the jury reads it out.
+    func resolveCourtCase(paidBail: Bool, lawyer chosenLawyer: LawyerOption, pleadGuilty: Bool) -> CourtVerdict {
+        guard let trouble = pendingLegalTrouble, var current = character else {
+            return CourtVerdict(guilty: false, years: 0, fine: 0, recordPoints: 0, headline: "", summary: "")
+        }
+        var notes: [String] = []
+
+        // Bail hearing
+        if !trouble.bailDenied, paidBail, current.cash >= trouble.bondsmanFee {
+            current.cash -= trouble.bondsmanFee
+            notes.append("You paid a bondsman $\(trouble.bondsmanFee) to get out on bail before trial.")
+        } else {
+            current.stats.adjust(happiness: -Int.random(in: 4...10))
+            notes.append(trouble.bailDenied ? "Bail was denied, so you waited for trial in a cell." : "You stayed locked up until your trial.")
+            if let job = current.job, Double.random(in: 0...1) < 0.5 {
+                current.job = nil
+                current.yearsAtJob = 0
+                notes.append("You lost your job as \(job.title) while you were stuck inside.")
             }
         }
 
-        return commitCrimeResult(current, text: text, isAlert: true)
+        // Paying the lawyer
+        var lawyer = chosenLawyer
+        let fee = lawyerCost(lawyer, for: trouble)
+        if fee > current.cash {
+            lawyer = .publicDefender
+        } else {
+            current.cash -= fee
+        }
+        let guilty = pleadGuilty || Double.random(in: 0...1) < trialConvictionChance(lawyer, for: trouble)
+
+        let verdict: CourtVerdict
+        if guilty {
+            let lead = trouble.leadCharge
+            var years = Int.random(in: lead.sentenceRange)
+            for extra in trouble.charges where extra != lead {
+                years += extra.sentenceRange.lowerBound
+            }
+            years = Int((Double(years) * (pleadGuilty ? 0.5 : lawyer.sentenceMultiplier)).rounded())
+            let rawFine = trouble.charges.reduce(0) { $0 + localized(Int.random(in: $1.fineRange), for: current) }
+            let fine = min(current.cash, pleadGuilty ? rawFine * 6 / 10 : rawFine)
+            let points = trouble.charges.reduce(0) { $0 + $1.severity.recordPoints }
+
+            current.cash -= fine
+            current.criminalRecord += points
+            current.convictions.append(contentsOf: trouble.charges.map(\.displayName))
+            current.jailYearsRemaining += years
+            current.policeHeat -= 30
+            current.stats.adjust(happiness: -Int.random(in: years > 0 ? 12...22 : 6...12))
+
+            if let job = current.job {
+                if years > 0 {
+                    current.job = nil
+                    current.yearsAtJob = 0
+                    notes.append("You lost your job as \(job.title).")
+                } else if !JobData.passesBackgroundCheck(job, record: current.criminalRecord) {
+                    current.job = nil
+                    current.yearsAtJob = 0
+                    notes.append("\(job.title) doesn't allow employees with a record. You were fired.")
+                }
+            }
+
+            let howText = pleadGuilty ? "You pleaded guilty" : "The jury found you guilty"
+            let timeText = years > 0 ? "sentenced to \(years) year\(years == 1 ? "" : "s") in prison" : "given probation"
+            let fineText = fine > 0 ? " and fined $\(fine)" : ""
+            let summary = "\(howText) of \(trouble.chargeDescription). You were \(timeText)\(fineText). This is now on your criminal record."
+            verdict = CourtVerdict(guilty: true, years: years, fine: fine, recordPoints: points, headline: "Guilty", summary: summary)
+        } else {
+            current.policeHeat -= 15
+            current.stats.adjust(happiness: Int.random(in: 4...10))
+            let lawyerText: String
+            switch lawyer {
+            case .selfRepresented: lawyerText = "You argued your own case and the jury bought it."
+            case .publicDefender: lawyerText = "Somehow your public defender pulled it off."
+            case .privateLawyer: lawyerText = "Your lawyer picked the evidence apart."
+            case .topAttorney: lawyerText = "Your attorney made the prosecution look foolish."
+            }
+            let summary = "Not guilty on \(trouble.chargeDescription). \(lawyerText) Your record stays clean of this one."
+            verdict = CourtVerdict(guilty: false, years: 0, fine: 0, recordPoints: 0, headline: "Not Guilty", summary: summary)
+        }
+
+        if chosenLawyer != lawyer {
+            notes.insert("You couldn't pay the lawyer, so a public defender took the case.", at: 0)
+        } else if fee > 0 {
+            notes.append("Legal fees came to $\(fee).")
+        }
+
+        let fullText = ([verdict.summary] + notes).joined(separator: " ")
+        _ = commitCrimeResult(current, text: fullText, isAlert: true)
+        return CourtVerdict(guilty: verdict.guilty, years: verdict.years, fine: verdict.fine, recordPoints: verdict.recordPoints, headline: verdict.headline, summary: fullText)
+    }
+
+    func closeCourtCase() {
+        pendingLegalTrouble = nil
+    }
+
+    /// Yearly police work: heat cools off, old cases can catch up with you,
+    /// and carrying an illegal weapon risks a stop and search.
+    private func handlePolicing(_ character: inout Character, log: inout [LogEntry]) {
+        character.policeHeat -= 12
+        guard !character.isInJail, pendingSocialEvent == nil, pendingLegalTrouble == nil else { return }
+
+        var cases = character.openCases
+        for index in cases.indices {
+            cases[index].yearsOpen += 1
+        }
+        let breakChance = 0.10 + Double(character.policeHeat) / 300.0
+        let crackedIndex = cases.indices.shuffled().first { _ in Double.random(in: 0...1) < breakChance }
+        var cracked: OpenCase?
+        if let crackedIndex {
+            cracked = cases.remove(at: crackedIndex)
+        }
+        let cold = cases.filter { !$0.crime.neverGoesCold && $0.yearsOpen >= 5 }
+        cases.removeAll { !$0.crime.neverGoesCold && $0.yearsOpen >= 5 }
+        character.openCases = cases
+        for item in cold {
+            log.append(LogEntry(text: "The police investigation into a \(item.crime.displayName.lowercased()) case went cold. \(character.firstName) is in the clear.", isAlert: false))
+        }
+
+        if let cracked {
+            let story = "Detectives reopened an old \(cracked.crime.displayName.lowercased()) case and it led to you."
+            arrest(&character, for: cracked.crime, caughtAtScene: false, story: story)
+            log.append(LogEntry(text: "Police knocked on \(character.firstName)'s door. \(story)", isAlert: true))
+            return
+        }
+
+        if let weapon = character.weapon, weapon.isIllegal,
+           Double.random(in: 0...1) < 0.05 + Double(character.policeHeat) / 300.0 {
+            let story = "Police stopped and searched you on the street and found your \(weapon.name)."
+            arrest(&character, for: .weaponPossession, caughtAtScene: true, story: story)
+            log.append(LogEntry(text: "\(character.firstName) was stopped and searched. Police found the \(weapon.name).", isAlert: true))
+        }
     }
 
     /// The yearly track while serving a sentence — no career, no shopping,
@@ -877,8 +1198,8 @@ final class GameViewModel: ObservableObject {
             log.append(LogEntry(text: "\(name) spent time in solitary confinement after a write-up.", isAlert: true))
             SoundManager.shared.play(.sad)
         case ..<0.45:
-            character.criminalRecord += 1
-            log.append(LogEntry(text: "\(name) got caught with contraband. Extra marks on an already long record.", isAlert: true))
+            character.stats.adjust(happiness: -Int.random(in: 3...8))
+            log.append(LogEntry(text: "\(name) got caught with contraband and lost their good behavior credit.", isAlert: true))
             SoundManager.shared.play(.alert)
         case ..<0.60:
             character.stats.adjust(happiness: Int.random(in: 2...6), smarts: Int.random(in: 1...4))
@@ -917,7 +1238,7 @@ final class GameViewModel: ObservableObject {
         if Double.random(in: 0...1) < chance {
             current.jailYearsRemaining = 0
             current.isFugitive = true
-            current.criminalRecord += 5
+            current.policeHeat = 100
             character = current
             SoundManager.shared.play(.achievement)
             var log = yearLog
@@ -958,20 +1279,29 @@ final class GameViewModel: ObservableObject {
         guard current.age >= 16 else { return "You are too young for this." }
         guard let target = randomCrimeTarget(from: current) else { return "There is nobody close enough to target." }
 
-        current.criminalRecord += 3
+        let masked = current.isMasked
+        let weaponPower = Double(current.weapon?.power ?? 0)
         let chance = 0.10
             + Double(current.stats.smarts) / 650.0
-            + (current.weaponName == nil ? 0 : 0.18)
+            + weaponPower * 0.03
             + (current.gangName == nil ? 0 : 0.10)
         if Double.random(in: 0...1) < chance {
             removeCrimeTarget(target.ref, from: &current)
+            current.policeHeat += 40
             current.stats.adjust(happiness: -Int.random(in: 12...28), smarts: -Int.random(in: 1...4))
             SoundManager.shared.play(.death)
-            return commitCrimeResult(current, text: "\(target.name) died after your attack. Your life feels darker now.", isAlert: true)
+            if Double.random(in: 0...1) < arrestChance(current, base: 0.2, masked: masked) {
+                arrest(&current, for: .murder, caughtAtScene: false, story: "Detectives linked you to \(target.name)'s death.")
+                return commitCrimeResult(current, text: "\(target.name) died after your attack. Within days, detectives were at your door.", isAlert: true)
+            }
+            // Murder cases never close on their own.
+            openCaseMaybe(&current, crime: .murder, chance: 1, masked: false)
+            return commitCrimeResult(current, text: "\(target.name) died after your attack. Your life feels darker now, and the police have opened a murder investigation.", isAlert: true)
         }
 
         let fine = min(current.cash, localized(Int.random(in: 90...600), for: current))
         current.cash -= fine
+        current.policeHeat += 25
         let injuryName = inflictViolentInjury(&current, allowGunshot: true)
         current.stats.adjust(happiness: -Int.random(in: 8...18))
         if current.stats.health <= 0, Double.random(in: 0...1) < 0.22 {
@@ -981,6 +1311,11 @@ final class GameViewModel: ObservableObject {
             return commitCrimeResult(current, text: "Your attack on \(target.name) went horribly wrong. You died from your injuries.", isAlert: true)
         }
         SoundManager.shared.playSequence([.ouch, .alert])
+        if Double.random(in: 0...1) < arrestChance(current, base: 0.5, masked: masked) {
+            arrest(&current, for: .attemptedMurder, caughtAtScene: true, story: "\(target.name) survived and told the police everything.")
+            return commitCrimeResult(current, text: "Your attack on \(target.name) failed and they fought back, leaving you with \(injuryName.lowercased()). They went straight to the police.", isAlert: true)
+        }
+        openCaseMaybe(&current, crime: .attemptedMurder, chance: 0.8, masked: masked)
         return commitCrimeResult(current, text: "Your attack on \(target.name) failed and they fought back. You lost $\(fine) and came away with \(injuryName.lowercased()).", isAlert: true)
     }
 
@@ -993,21 +1328,21 @@ final class GameViewModel: ObservableObject {
         let cost = localized(900, for: current)
         guard current.cash >= cost else { return "You need $\(cost) to hire a hitman." }
         current.cash -= cost
-        current.criminalRecord += 4
 
         let roll = Double.random(in: 0...1)
         if roll < 0.34 {
             removeCrimeTarget(target.ref, from: &current)
+            current.policeHeat += 20
             current.stats.adjust(happiness: -Int.random(in: 15...32), smarts: -Int.random(in: 2...5))
             SoundManager.shared.play(.death)
+            openCaseMaybe(&current, crime: .murderForHire, chance: 0.5, masked: false)
             return commitCrimeResult(current, text: "The hitman killed \(target.name). You paid $\(cost), and the guilt is hard to shake.", isAlert: true)
         }
-        if roll < 0.68 {
-            let fine = min(current.cash, localized(Int.random(in: 150...700), for: current))
-            current.cash -= fine
+        if roll < 0.60 {
             current.stats.adjust(happiness: -Int.random(in: 8...18))
             SoundManager.shared.play(.alert)
-            return commitCrimeResult(current, text: "The hitman was a setup. You lost $\(cost + fine) and gained a dangerous criminal record.", isAlert: true)
+            arrest(&current, for: .conspiracyToMurder, caughtAtScene: true, story: "The \"hitman\" was an undercover cop wearing a wire.")
+            return commitCrimeResult(current, text: "The hitman was an undercover cop. The moment you handed over $\(cost), officers burst in and arrested you.", isAlert: true)
         }
 
         current.stats.adjust(happiness: -Int.random(in: 4...12))
@@ -1238,6 +1573,7 @@ final class GameViewModel: ObservableObject {
     func startInterview(for job: Job) -> JobInterviewSession? {
         guard let current = character else { return nil }
         guard !job.requiresDegree || current.educationLevel == .university else { return nil }
+        guard JobData.passesBackgroundCheck(job, record: current.criminalRecord) else { return nil }
 
         let opener = Self.interviewOpeners.randomElement()!.map { line in
             line.replacingOccurrences(of: "%name%", with: current.firstName)
@@ -1352,17 +1688,9 @@ final class GameViewModel: ObservableObject {
         if let weaponName = current.weaponName,
            WeaponData.all.first(where: { $0.name == weaponName })?.isIllegal == true,
            Double.random(in: 0...1) < 0.9 {
-            current.weaponName = nil
+            arrest(&current, for: .weaponSmuggling, caughtAtScene: true, story: "Border agents found your \(weaponName) in your luggage.")
             character = current
             SoundManager.shared.playSequence([.alert, .rejected])
-            pendingLegalTrouble = LegalTrouble(
-                chargeDescription: "Weapon Smuggling",
-                bailCost: localized(Int.random(in: 600...1800), for: current),
-                lawyerCost: localized(Int.random(in: 9000...20000), for: current),
-                confiscatesWeaponWithoutLawyer: false,
-                jailYearsIfConvicted: Int.random(in: 2...5),
-                convictionChanceWithoutLawyer: min(0.9, 0.5 + Double(current.criminalRecord) * 0.05)
-            )
             return MigrationOutcome(
                 approved: false,
                 destinationCountry: session.destinationCountry,
@@ -1741,7 +2069,7 @@ final class GameViewModel: ObservableObject {
     private func resolveGangRecruitment(_ event: SocialEvent, accepted: Bool, character: inout Character) -> LogEntry {
         if accepted {
             character.gangName = event.actorName
-            character.criminalRecord += 1
+            character.policeHeat += 8
             character.stats.adjust(happiness: Int.random(in: 2...8), smarts: -Int.random(in: 0...2))
             SoundManager.shared.play(.danger)
             return LogEntry(text: "You joined up with \(event.actorName)'s crew. There's no easy way out now.", isAlert: true)
@@ -1775,7 +2103,9 @@ final class GameViewModel: ObservableObject {
             return LogEntry(text: "You passed on \(event.actorName)'s offer.", isAlert: false)
         }
 
+        let record = character.criminalRecord
         let candidates = JobData.available(stage: character.stage, educationLevel: character.educationLevel, country: character.country)
+            .filter { JobData.passesBackgroundCheck($0, record: record) }
         guard let job = candidates.randomElement() else {
             SoundManager.shared.play(.rejected)
             return LogEntry(text: "\(event.actorName)'s lead fell through — nothing suitable panned out.", isAlert: true)
@@ -1801,26 +2131,20 @@ final class GameViewModel: ObservableObject {
             return LogEntry(text: "You sat this one out. \(event.actorName) wasn't thrilled, but let it go.", isAlert: false)
         }
 
-        let successChance = 0.42 + Double(character.stats.smarts) / 500.0 + (character.weaponName == nil ? 0 : 0.08)
+        let weaponBonus = Double(character.weapon?.power ?? 0) * 0.015
+        let successChance = 0.42 + Double(character.stats.smarts) / 500.0 + weaponBonus
         if Double.random(in: 0...1) < successChance {
             let take = localized(Int.random(in: 800...4000), for: character)
             character.cash += take
-            character.criminalRecord += 3
+            character.policeHeat += 25
             character.stats.adjust(happiness: Int.random(in: 4...10))
+            openCaseMaybe(&character, crime: .bankRobbery, chance: 0.4, masked: character.isMasked)
             SoundManager.shared.play(.achievement)
             return LogEntry(text: "The job with \(event.actorName) went off clean. Your cut came to $\(take).", isAlert: false)
         }
 
-        character.criminalRecord += 2
         SoundManager.shared.playSequence([.alert, .rejected])
-        pendingLegalTrouble = LegalTrouble(
-            chargeDescription: "Bank Robbery",
-            bailCost: localized(Int.random(in: 800...2500), for: character),
-            lawyerCost: localized(Int.random(in: 12000...28000), for: character),
-            confiscatesWeaponWithoutLawyer: character.weaponName != nil,
-            jailYearsIfConvicted: Int.random(in: 3...8),
-            convictionChanceWithoutLawyer: min(0.92, 0.55 + Double(character.criminalRecord) * 0.04)
-        )
+        arrest(&character, for: .bankRobbery, caughtAtScene: true, story: "Alarms went off mid-job and the police had the building surrounded.")
         return LogEntry(text: "The job with \(event.actorName) went south. Alarms, sirens — you were caught at the scene.", isAlert: true)
     }
 
