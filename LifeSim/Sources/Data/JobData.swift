@@ -41,6 +41,46 @@ enum JobData {
 
     static let byID: [String: Job] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
 
+    /// The most criminal record points each employer will put up with.
+    /// Anything not listed here doesn't run a background check at all.
+    /// Only convictions count, so crimes you got away with never show up.
+    private static let maxRecordPoints: [String: Int] = [
+        // Any conviction at all is a dealbreaker
+        "teacher": 0,
+        "nurse": 0,
+        "paralegal": 0,
+        "security": 0,
+        "analyst": 0,
+        "private_banker": 0,
+        "dogwalker": 0,
+        // A small mistake is fine, a real history isn't
+        "goggle_swe": 2,
+        "consultant": 2,
+        "architect": 2,
+        "yacht_broker": 2,
+        "speedex": 3,
+        "wallys_supervisor": 3,
+        "usher": 3,
+        "starbeans": 4,
+    ]
+
+    static func maxRecord(for job: Job) -> Int? {
+        maxRecordPoints[job.id]
+    }
+
+    static func passesBackgroundCheck(_ job: Job, record: Int) -> Bool {
+        guard let limit = maxRecord(for: job) else { return true }
+        return record <= limit
+    }
+
+    static func backgroundCheckLabel(for job: Job) -> String? {
+        switch maxRecord(for: job) {
+        case .none: return nil
+        case .some(0): return "Clean record required"
+        case .some: return "Background check"
+        }
+    }
+
     static func available(stage: LifeStage, educationLevel: EducationLevel, country: String) -> [Job] {
         let multiplier = CountryData.profile(for: country).salaryMultiplier
         let localJobs = all.filter { multiplier >= $0.minSalaryMultiplier && multiplier <= $0.maxSalaryMultiplier }

@@ -77,6 +77,14 @@ struct CareerView: View {
                     }
                 }
 
+                if character.hasCriminalRecord {
+                    Section {
+                        Label("You have a criminal record\(character.convictions.isEmpty ? "" : " (\(character.convictions.joined(separator: ", ")))"). Some employers won't hire you.", systemImage: "doc.text.fill")
+                            .font(.caption)
+                            .foregroundStyle(.purple)
+                    }
+                }
+
                 Section("Available Jobs") {
                     let jobs = JobData.available(stage: character.stage, educationLevel: character.educationLevel, country: character.country)
                         .filter { $0.id != character.job?.id }
@@ -88,18 +96,25 @@ struct CareerView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(jobs) { job in
+                            let cleared = JobData.passesBackgroundCheck(job, record: character.criminalRecord)
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(job.title).font(.subheadline.bold())
                                     Text("\(job.category) · ~$\(scaledSalary(job))/yr\(job.requiresDegree ? " · Requires Degree" : "")")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
+                                    if let check = JobData.backgroundCheckLabel(for: job) {
+                                        Label(cleared ? check : "Your criminal record rules you out", systemImage: cleared ? "checkmark.shield" : "xmark.shield.fill")
+                                            .font(.caption2.bold())
+                                            .foregroundStyle(cleared ? Color.secondary : Color.red)
+                                    }
                                 }
                                 Spacer()
                                 Button("Apply") {
                                     interviewSession = viewModel.startInterview(for: job)
                                 }
                                 .buttonStyle(.borderedProminent)
+                                .disabled(!cleared)
                             }
                             .padding(.vertical, 2)
                         }

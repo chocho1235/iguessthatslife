@@ -57,9 +57,7 @@ struct MigrationQuizView: View {
                 }
             }
             .sheet(item: $viewModel.pendingLegalTrouble) { trouble in
-                LegalTroubleView(trouble: trouble, cash: viewModel.character?.cash ?? 0) { hireLawyer in
-                    _ = viewModel.resolveLegalTrouble(hireLawyer: hireLawyer)
-                }
+                LegalTroubleView(viewModel: viewModel, trouble: trouble) { _ in }
             }
         }
     }

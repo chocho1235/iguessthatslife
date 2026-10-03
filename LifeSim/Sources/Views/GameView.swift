@@ -111,9 +111,7 @@ struct GameView: View {
             )
         }
         .sheet(item: $viewModel.pendingLegalTrouble) { trouble in
-            LegalTroubleView(trouble: trouble, cash: character.cash) { hireLawyer in
-                _ = viewModel.resolveLegalTrouble(hireLawyer: hireLawyer)
-            }
+            LegalTroubleView(viewModel: viewModel, trouble: trouble) { _ in }
         }
     }
 
@@ -385,7 +383,7 @@ struct GameView: View {
 private struct CrimeView: View {
     @ObservedObject var viewModel: GameViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var feedback = "Choose carefully. Crime can leave scars, records, enemies, or worse."
+    @State private var feedback = "Choose carefully. Crime can leave scars, enemies, a prison sentence or worse."
     @State private var showingResult = false
     @State private var showingRobberyGame = false
     @State private var robberySetup = RobberySetup(isMafiaBoss: false, difficulty: .standard, scenario: .pickpocket)
@@ -409,7 +407,10 @@ private struct CrimeView: View {
                 }
             }
             .alert("Crime Result", isPresented: $showingResult) {
-                Button("OK", role: .cancel) { }
+                Button("OK", role: .cancel) {
+                    // Sentenced in court — no more crime from a prison cell.
+                    if character?.isInJail == true { dismiss() }
+                }
             } message: {
                 Text(feedback)
             }
@@ -439,9 +440,11 @@ private struct CrimeView: View {
                 }
             }
             .sheet(item: $viewModel.pendingLegalTrouble) { trouble in
-                LegalTroubleView(trouble: trouble, cash: character?.cash ?? 0) { hireLawyer in
-                    feedback = viewModel.resolveLegalTrouble(hireLawyer: hireLawyer)
-                    showingResult = true
+                LegalTroubleView(viewModel: viewModel, trouble: trouble) { summary in
+                    feedback = summary
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        showingResult = true
+                    }
                 }
             }
         }
@@ -470,9 +473,20 @@ private struct CrimeView: View {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     crimeStatus("Gang", value: character.gangName ?? "None", icon: "person.3.fill", color: character.gangName == nil ? .secondary : .red)
                     crimeStatus("Weapon", value: character.weaponName ?? "None", icon: "shield.lefthalf.filled", color: character.weaponName == nil ? .secondary : .orange)
-                    crimeStatus("Record", value: "\(character.criminalRecord)", icon: "doc.text.fill", color: character.criminalRecord == 0 ? .secondary : .purple)
+                    crimeStatus("Record", value: character.criminalRecord == 0 ? "Clean" : "\(character.criminalRecord) pts", icon: "doc.text.fill", color: character.criminalRecord == 0 ? .secondary : .purple)
+                    crimeStatus("Police Heat", value: heatLabel(character.policeHeat), icon: "light.beacon.max.fill", color: heatColor(character.policeHeat))
+                    crimeStatus("Open Cases", value: character.openCases.isEmpty ? "None" : "\(character.openCases.count)", icon: "magnifyingglass", color: character.openCases.isEmpty ? .secondary : .orange)
+                    crimeStatus("Mask", value: character.isMasked ? "Balaclava on" : "None", icon: "theatermasks.fill", color: character.isMasked ? .indigo : .secondary)
                     crimeStatus("Cash", value: "$\(character.cash)", icon: "dollarsign.circle.fill", color: .green)
                 }
+                if !character.convictions.isEmpty {
+                    Text("Convictions: \(character.convictions.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.purple)
+                }
+                Text("You only get a record if a court convicts you. Crimes you get away with can still come back as open cases.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding()
@@ -484,9 +498,13 @@ private struct CrimeView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Actions")
                 .font(.headline)
-            Text("Looking for a weapon? Visit the Weapons shop.")
+            Text("Weapons help with hold-ups. A balaclava from the Clothing shop hides your face.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            crimeButton("Shoplift", requirement: "Age 10+ · low risk, low reward", icon: "cart.fill", tint: .teal) {
+                perform(viewModel.shoplift)
+            }
 
             crimeButton("Join Gang", requirement: "Age 13+", icon: "person.3.fill", tint: .red) {
                 perform(viewModel.joinGang)
@@ -503,16 +521,44 @@ private struct CrimeView: View {
                     showingRobberyGame = true
                 }
             }
+            crimeButton("Steal a Car", requirement: "Age 16+ · sell it to a chop shop", icon: "car.fill", tint: .orange) {
+                perform(viewModel.stealCar)
+            }
+            crimeButton("Armed Robbery", requirement: "Age 16+ · needs a weapon", icon: "storefront.fill", tint: .pink) {
+                perform(viewModel.armedRobbery)
+            }
             crimeButton("Attempt Murder", requirement: "Age 16+ · needs a target", icon: "bolt.fill", tint: .red) {
                 perform(viewModel.attemptMurder)
             }
-            crimeButton("Hire Hitman", requirement: "Age 18+ · $900", icon: "phone.fill", tint: .black) {
+            crimeButton("Hire Hitman", requirement: "Age 18+ · $900 · could be a cop", icon: "phone.fill", tint: .black) {
                 perform(viewModel.hireHitman)
+            }
+            crimeButton("Lay Low", requirement: "Costs money · cools police heat", icon: "house.fill", tint: .gray) {
+                perform(viewModel.layLow)
             }
         }
         .padding()
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func heatLabel(_ heat: Int) -> String {
+        switch heat {
+        case 0: return "None"
+        case ..<25: return "Low"
+        case ..<50: return "Medium"
+        case ..<75: return "High"
+        default: return "Wanted"
+        }
+    }
+
+    private func heatColor(_ heat: Int) -> Color {
+        switch heat {
+        case 0: return .secondary
+        case ..<25: return .yellow
+        case ..<50: return .orange
+        default: return .red
+        }
     }
 
     private func crimeStatus(_ title: String, value: String, icon: String, color: Color) -> some View {
@@ -563,6 +609,7 @@ private struct CrimeView: View {
     }
 
     private func perform(_ action: () -> String) {
+        guard viewModel.pendingLegalTrouble == nil, character?.isInJail != true else { return }
         feedback = action()
         showingResult = true
     }
@@ -1030,7 +1077,22 @@ private final class RobberyScene: SKScene {
 
         guard let facewear = accessories.first(where: { $0.slot == .face }) else { return }
         let frameColor = UIColor(facewear.color)
-        if facewear.id == "eyepatch" {
+        if facewear.id == "balaclava" {
+            let mask = SKShapeNode(circleOfRadius: 17.5)
+            mask.position = CGPoint(x: 3, y: 0)
+            mask.fillColor = UIColor(white: 0.08, alpha: 1)
+            mask.strokeColor = UIColor.white.withAlphaComponent(0.25)
+            mask.lineWidth = 1.5
+            mask.zPosition = 6
+            avatar.addChild(mask)
+
+            let slit = SKShapeNode(rectOf: CGSize(width: 6, height: 18), cornerRadius: 3)
+            slit.position = CGPoint(x: 14, y: 0)
+            slit.fillColor = UIColor(white: 0.85, alpha: 1)
+            slit.strokeColor = .clear
+            slit.zPosition = 7
+            avatar.addChild(slit)
+        } else if facewear.id == "eyepatch" {
             let patch = SKShapeNode(circleOfRadius: 4)
             patch.position = CGPoint(x: 14, y: 6)
             patch.fillColor = .black
