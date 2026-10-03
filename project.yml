@@ -8,6 +8,7 @@ settings:
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
+    CURRENT_PROJECT_VERSION: 1
 targets:
   LifeSim:
     type: application
@@ -16,6 +17,9 @@ targets:
       path: LifeSim/Info.plist
       properties:
         UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
     settings:

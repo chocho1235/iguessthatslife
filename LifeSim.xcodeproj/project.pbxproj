@@ -19,6 +19,7 @@
 		20992B3CA4319E8CCA8991CC /* casino_intro_sfx.wav in Resources */ = {isa = PBXBuildFile; fileRef = EE1040AD97127107DF845E93 /* casino_intro_sfx.wav */; };
 		27A6ACAEEA91BD25F3E7C37D /* InvestmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27CFB7D6F3D9DA8D6E8552A1 /* InvestmentsView.swift */; };
 		27F9187CB917023D375D91AD /* CasinoIntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E52476CFDA8500249141B19 /* CasinoIntroView.swift */; };
+		A1C0FFEE0000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE0000000000000001 /* Assets.xcassets */; };
 		2919F199E0EDA75E7B299B1F /* casino_intro_music.wav in Resources */ = {isa = PBXBuildFile; fileRef = 623AA8F3C1FBEA5284DC2AA1 /* casino_intro_music.wav */; };
 		2A82E65FF1BFEA66AB256505 /* SavingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BBBEC76BFB6FE0A72A29266 /* SavingsView.swift */; };
 		2CDB3E3118BAB213DD7DAD6E /* BankHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E459F7469A8BA90F7A5D5AEC /* BankHubView.swift */; };
@@ -112,6 +113,7 @@
 		5FA2095FE328DFF72A52D243 /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
 		5FC0FF1237A03EE47BD04F4A /* FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsView.swift; sourceTree = "<group>"; };
 		623282954906BA7846CE57D8 /* LifeStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeStage.swift; sourceTree = "<group>"; };
+		A1C0FFEE0000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		623AA8F3C1FBEA5284DC2AA1 /* casino_intro_music.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = casino_intro_music.wav; sourceTree = "<group>"; };
 		66AC5D8E6F50F35CF3264A33 /* ShopHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopHubView.swift; sourceTree = "<group>"; };
 		6938BAAE011B22F280AB829E /* YouthJobData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouthJobData.swift; sourceTree = "<group>"; };
@@ -223,6 +225,7 @@
 		5440DAF7E869603555C21468 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				A1C0FFEE0000000000000001 /* Assets.xcassets */,
 				623AA8F3C1FBEA5284DC2AA1 /* casino_intro_music.wav */,
 				EE1040AD97127107DF845E93 /* casino_intro_sfx.wav */,
 			);
@@ -377,6 +380,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1C0FFEE0000000000000002 /* Assets.xcassets in Resources */,
 				2919F199E0EDA75E7B299B1F /* casino_intro_music.wav in Resources */,
 				20992B3CA4319E8CCA8991CC /* casino_intro_sfx.wav in Resources */,
 			);
@@ -504,6 +508,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
@@ -586,6 +591,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
