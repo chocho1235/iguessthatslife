@@ -65,7 +65,8 @@ enum JobData {
     ]
 
     static func maxRecord(for job: Job) -> Int? {
-        maxRecordPoints[job.id]
+        if let track = CareerData.track(forJobID: job.id) { return track.maxRecord }
+        return maxRecordPoints[job.id]
     }
 
     static func passesBackgroundCheck(_ job: Job, record: Int) -> Bool {

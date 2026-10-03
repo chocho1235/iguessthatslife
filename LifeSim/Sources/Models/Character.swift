@@ -46,6 +46,8 @@ struct Character: Codable {
     var policeHeatValue: Int? = nil
     var openCaseList: [OpenCase]? = nil
     var ownedAssetList: [OwnedAsset]? = nil
+    /// Where you are on a special career ladder (Army, Police and so on).
+    var careerProgress: CareerProgress? = nil
     /// How many robberies this character has attempted — the police get
     /// better at catching up with you the more you push your luck.
     var robberyCount: Int = 0
@@ -76,6 +78,11 @@ struct Character: Codable {
         set { ownedAssetList = newValue }
     }
     var hasGetawayVehicle: Bool { ownedAssets.contains { $0.asset?.kind.isGetawayVehicle == true } }
+    /// Career ladder progress, but only while you still hold that job.
+    var activeCareer: CareerProgress? {
+        guard let progress = careerProgress, let track = progress.track, job?.id == track.jobID else { return nil }
+        return progress
+    }
     var hasCriminalRecord: Bool { criminalRecord > 0 }
     var isMasked: Bool { equippedAccessoryIDs[.face] == "balaclava" }
     var weapon: Weapon? { weaponName.flatMap { name in WeaponData.all.first { $0.name == name } } }

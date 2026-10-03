@@ -61,7 +61,9 @@ struct CareerView: View {
                     }
                 }
 
-                if let job = character.job {
+                if let progress = character.activeCareer {
+                    CareerLadderSection(viewModel: viewModel, progress: progress, feedback: $feedback)
+                } else if let job = character.job {
                     Section("Current Job") {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(job.title).font(.subheadline.bold())
@@ -83,6 +85,10 @@ struct CareerView: View {
                             .font(.caption)
                             .foregroundStyle(.purple)
                     }
+                }
+
+                if character.stage == .adult || character.stage == .senior {
+                    SpecialCareersSection(viewModel: viewModel, feedback: $feedback)
                 }
 
                 Section("Available Jobs") {

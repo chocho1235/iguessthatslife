@@ -1225,7 +1225,10 @@ final class GameViewModel: ObservableObject {
     /// Chance of a guilty verdict if you plead not guilty and go to trial.
     func trialConvictionChance(_ lawyer: LawyerOption, for trouble: LegalTrouble) -> Double {
         let record = Double(character?.criminalRecord ?? 0)
-        var chance = trouble.evidence * lawyer.evidenceWeight + record * 0.015
+        // People who practice law do a lot better defending themselves.
+        let isLawyer = character?.activeCareer?.trackID == "law"
+        let weight = lawyer == .selfRepresented && isLawyer ? 0.6 : lawyer.evidenceWeight
+        var chance = trouble.evidence * weight + record * 0.015
         if lawyer == .publicDefender { chance += 0.08 }
         if lawyer == .selfRepresented { chance -= Double(character?.stats.smarts ?? 50) / 1000.0 }
         if character?.isFugitive == true { chance += 0.1 }
@@ -1947,6 +1950,229 @@ final class GameViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Special careers
+
+    /// The Job record that stands in for a rank on a career ladder, so pay,
+    /// background checks and quitting all work like any other job.
+    private func careerJob(for progress: CareerProgress) -> Job? {
+        guard let track = progress.track, let rank = progress.rank, let role = progress.role else { return nil }
+        return Job(
+            id: track.jobID,
+            title: "\(rank.title), \(role.title)",
+            category: track.name,
+            baseSalary: Int(Double(rank.salary) * role.payMultiplier),
+            requiresDegree: false,
+            isPartTime: false
+        )
+    }
+
+    /// Why this career won't take you right now, or nil if you can apply.
+    func careerJoinBlocker(_ track: CareerTrack) -> String? {
+        guard let current = character else { return "Start a life first." }
+        guard current.age >= track.minAge else { return "You must be \(track.minAge) to join." }
+        guard current.age <= track.maxJoinAge else { return "Too old to start. They only take new recruits up to \(track.maxJoinAge)." }
+        if track.requiresDegree, current.educationLevel != .university { return "You need a university degree." }
+        guard current.stats.smarts >= track.minSmarts else { return "You need at least \(track.minSmarts) Smarts." }
+        guard current.stats.health >= track.minHealth else { return "You need at least \(track.minHealth) Health to pass the physical." }
+        if let maxRecord = track.maxRecord, current.criminalRecord > maxRecord {
+            return maxRecord == 0 ? "They need a clean criminal record." : "Your criminal record is too long."
+        }
+        if current.isFugitive { return "They'd arrest a fugitive on the spot." }
+        if current.activeCareer?.trackID == track.id { return "You're already in the \(track.name)." }
+        return nil
+    }
+
+    func roleBlocker(_ role: CareerRole, in progress: CareerProgress) -> String? {
+        guard let current = character, let track = progress.track else { return "" }
+        if role.id == progress.roleID { return "Current role" }
+        guard progress.rankIndex >= role.minRank else { return "Needs rank \(track.ranks[role.minRank].title)" }
+        guard current.stats.smarts >= role.minSmarts else { return "Needs \(role.minSmarts) Smarts" }
+        guard current.stats.health >= role.minHealth else { return "Needs \(role.minHealth) Health" }
+        if role.requiresDegree, current.educationLevel != .university { return "Needs a degree" }
+        return nil
+    }
+
+    func promotionBlocker(_ progress: CareerProgress) -> String? {
+        guard let current = character else { return "" }
+        return promotionBlocker(progress, for: current)
+    }
+
+    private func promotionBlocker(_ progress: CareerProgress, for current: Character) -> String? {
+        guard let next = progress.nextRank else { return "You're at the top. There's nowhere higher to go." }
+        guard progress.yearsInRank >= next.minYears else {
+            let left = next.minYears - progress.yearsInRank
+            return "\(left) more year\(left == 1 ? "" : "s") in your current rank first."
+        }
+        guard progress.performance >= next.minPerformance else { return "Your performance needs to be at least \(next.minPerformance)." }
+        if next.requiresDegree, current.educationLevel != .university { return "\(next.title) requires a university degree." }
+        guard current.stats.smarts >= next.minSmarts else { return "\(next.title) needs at least \(next.minSmarts) Smarts." }
+        return nil
+    }
+
+    @discardableResult
+    func joinCareer(_ track: CareerTrack, roleID: String) -> String {
+        if let blocker = careerJoinBlocker(track) { return blocker }
+        guard var current = character, let role = track.role(roleID) else { return "" }
+
+        let chance = min(0.97, track.acceptChance
+            + Double(current.stats.health - 50) / 300.0
+            + Double(current.stats.smarts - 50) / 300.0)
+        guard Double.random(in: 0...1) < chance else {
+            SoundManager.shared.play(.rejected)
+            return "The \(track.name) turned down your application this time. Try again later."
+        }
+
+        let progress = CareerProgress(trackID: track.id, roleID: role.id)
+        current.careerProgress = progress
+        current.job = careerJob(for: progress)
+        current.yearsAtJob = 0
+        current.stats.adjust(happiness: Int.random(in: 3...8))
+        character = current
+        SoundManager.shared.play(.hired)
+        let rankTitle = track.ranks[0].title
+        let text = "You joined the \(track.name) as \(Self.article(for: rankTitle)) \(rankTitle) in \(role.title)."
+        var log = yearLog
+        log.append(LogEntry(text: text, isAlert: false))
+        yearLog = log
+        return text
+    }
+
+    @discardableResult
+    func workHard() -> String {
+        guard var current = character, var progress = current.activeCareer else { return "" }
+        guard !progress.workedHardThisYear else { return "You've already been putting in extra hours this year." }
+        progress.workedHardThisYear = true
+        let gain = Int.random(in: 8...14)
+        progress.performance = min(100, progress.performance + gain)
+        current.stats.adjust(health: -Int.random(in: 0...2), happiness: -Int.random(in: 2...5))
+        current.careerProgress = progress
+        character = current
+        SoundManager.shared.play(.tap)
+        return "You put in long hours and your bosses noticed. Performance +\(gain)."
+    }
+
+    @discardableResult
+    func seekPromotion() -> String {
+        guard var current = character, var progress = current.activeCareer else { return "" }
+        guard !progress.triedPromotionThisYear else { return "You already went for a promotion this year. Wait until next year." }
+        if let blocker = promotionBlocker(progress) { return blocker }
+        progress.triedPromotionThisYear = true
+
+        let next = progress.nextRank!
+        let chance = min(0.95, 0.35 + Double(progress.performance - next.minPerformance) / 40.0)
+        if Double.random(in: 0...1) < chance {
+            promote(&current, progress: &progress)
+            character = current
+            SoundManager.shared.play(.achievement)
+            let text = "Promoted! You're now \(Self.article(for: next.title)) \(next.title)."
+            var log = yearLog
+            log.append(LogEntry(text: text, isAlert: false))
+            yearLog = log
+            return text
+        }
+        progress.performance = max(0, progress.performance - 5)
+        current.stats.adjust(happiness: -Int.random(in: 2...5))
+        current.careerProgress = progress
+        character = current
+        SoundManager.shared.play(.rejected)
+        return "The promotion went to someone else. Keep your performance up and try again next year."
+    }
+
+    @discardableResult
+    func switchRole(to roleID: String) -> String {
+        guard var current = character, var progress = current.activeCareer,
+              let role = progress.track?.role(roleID) else { return "" }
+        if let blocker = roleBlocker(role, in: progress) { return blocker }
+        progress.roleID = roleID
+        current.careerProgress = progress
+        current.job = careerJob(for: progress)
+        character = current
+        SoundManager.shared.play(.success)
+        return "You transferred to \(role.title)."
+    }
+
+    private static func article(for word: String) -> String {
+        guard let first = word.lowercased().first else { return "a" }
+        return "aeiou".contains(first) ? "an" : "a"
+    }
+
+    private func promote(_ character: inout Character, progress: inout CareerProgress) {
+        progress.rankIndex += 1
+        progress.yearsInRank = 0
+        progress.performance = max(40, progress.performance - 15)
+        character.careerProgress = progress
+        character.job = careerJob(for: progress)
+        character.stats.adjust(happiness: Int.random(in: 5...10))
+    }
+
+    /// A working year on a career ladder: performance moves, things happen
+    /// on the job, dangerous roles get dangerous, and promotions come up.
+    private func handleCareerTrack(_ character: inout Character, log: inout [LogEntry]) {
+        guard var progress = character.activeCareer, let track = progress.track, let role = progress.role else { return }
+        let name = character.firstName
+
+        progress.yearsInRank += 1
+        progress.yearsInCareer += 1
+        let drift = (character.stats.smarts - 50) / 10
+            + (character.stats.happiness - 50) / 15
+            + Int.random(in: -6...6)
+            + (progress.workedHardThisYear ? 2 : -2)
+        progress.performance = min(100, max(0, progress.performance + drift))
+        progress.workedHardThisYear = false
+        progress.triedPromotionThisYear = false
+
+        let violentTracks: Set<String> = ["army", "police", "fire", "law"]
+        if Double.random(in: 0...1) < role.risk * 0.3 {
+            if Double.random(in: 0...1) < role.risk * 0.05 {
+                character.careerProgress = progress
+                character.isAlive = false
+                character.causeOfDeath = track.deathCause
+                attackTrigger += 1
+                log.append(LogEntry(text: "\(name) \(track.dangerText) and didn't make it home.", isAlert: true))
+                return
+            }
+            let injury: String
+            if violentTracks.contains(track.id) {
+                injury = inflictViolentInjury(&character, allowGunshot: track.id == "army" || track.id == "police")
+            } else {
+                grantCondition(&character, id: "minor_injury")
+                injury = "Minor Injury"
+            }
+            attackTrigger += 1
+            progress.performance = min(100, progress.performance + 5)
+            var text = "\(name) \(track.dangerText) and came away with \(injury.lowercased())."
+            if track.id == "army" || track.id == "police" || track.id == "fire", Double.random(in: 0...1) < 0.4 {
+                progress.medals += 1
+                progress.performance = min(100, progress.performance + 8)
+                text += " They were awarded a medal for bravery."
+            }
+            log.append(LogEntry(text: text, isAlert: true))
+        } else {
+            let roll = Double.random(in: 0...1)
+            if roll < 0.35, let event = track.goodEvents.randomElement() {
+                progress.performance = min(100, progress.performance + event.performance)
+                character.stats.adjust(happiness: event.happiness)
+                log.append(LogEntry(text: "\(name) \(event.text).", isAlert: false))
+            } else if roll < 0.5, let event = track.badEvents.randomElement() {
+                progress.performance = max(0, progress.performance + event.performance)
+                character.stats.adjust(happiness: event.happiness)
+                log.append(LogEntry(text: "\(name) \(event.text).", isAlert: true))
+            }
+        }
+
+        character.careerProgress = progress
+        if promotionBlocker(progress, for: character) == nil, Double.random(in: 0...1) < 0.45, let next = progress.nextRank {
+            promote(&character, progress: &progress)
+            log.append(LogEntry(text: "\(name) was promoted to \(next.title)!", isAlert: false))
+        }
+
+        if progress.performance < 15, Double.random(in: 0...1) < 0.4 {
+            log.append(LogEntry(text: "\(name) was let go from the \(track.name) for poor performance.", isAlert: true))
+            character.job = nil
+            character.yearsAtJob = 0
+        }
+    }
+
     private func handleCareer(_ character: inout Character, log: inout [LogEntry]) {
         guard let job = character.job else { return }
 
@@ -1963,6 +2189,12 @@ final class GameViewModel: ObservableObject {
         let pay = max(0, Int(Double(job.baseSalary) * multiplier * variance))
         character.cash += pay
         log.append(LogEntry(text: "\(character.firstName) earned $\(pay) working as \(job.title).", isAlert: false))
+
+        // Career ladders move by promotion instead of flat raises.
+        if character.activeCareer != nil {
+            handleCareerTrack(&character, log: &log)
+            return
+        }
 
         if character.yearsAtJob % 3 == 0 {
             let raised = Job(id: job.id, title: job.title, category: job.category, baseSalary: Int(Double(job.baseSalary) * 1.08), requiresDegree: job.requiresDegree, isPartTime: job.isPartTime)
