@@ -268,6 +268,220 @@ final class GameViewModel: ObservableObject {
             let percentText = String(format: "%.0f", abs(percentChange) * 100)
             log.append(LogEntry(text: "\(stock.symbol) \(direction) \(percentText)% to $\(String(format: "%.2f", newPrice))/share.", isAlert: percentChange < 0))
         }
+
+        handleAssets(&character, log: &log)
+    }
+
+    // MARK: - Assets
+
+    /// The asset's sticker price in the character's local economy.
+    func localPrice(of asset: Asset) -> Int {
+        guard let current = character else { return asset.price }
+        return localized(asset.price, for: current)
+    }
+
+    func localUpkeep(of asset: Asset) -> Int {
+        guard let current = character else { return asset.yearlyUpkeep }
+        return localized(asset.yearlyUpkeep, for: current)
+    }
+
+    func mortgageDownPayment(for asset: Asset) -> Int {
+        Int(Double(localPrice(of: asset)) * AssetData.mortgageDownPayment)
+    }
+
+    /// Everything you own minus everything you owe.
+    var netWorth: Int {
+        guard let current = character else { return 0 }
+        let stocks = StockData.all.reduce(0.0) { total, stock in
+            total + Double(current.stockHoldings[stock.id] ?? 0) * stockPrice(for: stock, character: current)
+        }
+        let equity = current.ownedAssets.reduce(0) { $0 + $1.equity }
+        return current.cash + current.bankBalance + Int(stocks) + equity
+    }
+
+    /// Why this can't be bought right now, or nil if it can.
+    func assetPurchaseBlocker(_ asset: Asset, mortgage: Bool) -> String? {
+        guard let current = character else { return "Start a life first." }
+        guard current.age >= asset.kind.minimumAge else { return "You must be \(asset.kind.minimumAge) to buy this." }
+        guard !current.ownedAssets.contains(where: { $0.assetID == asset.id }) else { return "You already own one." }
+        let price = localized(asset.price, for: current)
+        if mortgage {
+            guard asset.kind.allowsMortgage else { return "You can't get a mortgage for this." }
+            guard let job = current.job, !job.isPartTime else { return "The bank wants to see a full-time job before giving you a mortgage." }
+            let salary = Int(Double(job.baseSalary) * CountryData.profile(for: current.country).salaryMultiplier)
+            let loan = price - mortgageDownPayment(for: asset)
+            let payment = Int(Double(loan) * AssetData.mortgagePaymentRate)
+            guard payment <= salary / 2 else { return "The bank says your salary is too low. Payments would be $\(payment)/yr." }
+            guard current.cash >= mortgageDownPayment(for: asset) else { return "You need $\(mortgageDownPayment(for: asset)) cash for the down payment." }
+        } else {
+            guard current.cash >= price else { return "You need $\(price) in cash." }
+        }
+        return nil
+    }
+
+    @discardableResult
+    func buyAsset(_ asset: Asset, mortgage: Bool = false) -> String {
+        if let blocker = assetPurchaseBlocker(asset, mortgage: mortgage) { return blocker }
+        guard var current = character else { return "" }
+        let price = localized(asset.price, for: current)
+        let upkeep = localized(asset.yearlyUpkeep, for: current)
+
+        var owned = OwnedAsset(assetID: asset.id, purchasePrice: price, value: price, upkeep: upkeep)
+        let text: String
+        if mortgage {
+            let down = mortgageDownPayment(for: asset)
+            current.cash -= down
+            owned.loanRemaining = price - down
+            owned.yearlyPayment = Int(Double(owned.loanRemaining) * AssetData.mortgagePaymentRate)
+            text = "You bought a \(asset.name) with $\(down) down and a mortgage of $\(owned.loanRemaining). Payments are $\(owned.yearlyPayment) a year."
+        } else {
+            current.cash -= price
+            text = "You bought a \(asset.name) for $\(price)!"
+        }
+        current.ownedAssets.append(owned)
+        current.stats.adjust(happiness: Int.random(in: 2...6))
+        character = current
+        var log = yearLog
+        log.append(LogEntry(text: text, isAlert: false))
+        yearLog = log
+        SoundManager.shared.playSequence([.cash, .achievement])
+        return text
+    }
+
+    @discardableResult
+    func sellAsset(_ ownedID: UUID) -> String {
+        guard var current = character,
+              let index = current.ownedAssets.firstIndex(where: { $0.id == ownedID }) else { return "" }
+        let owned = current.ownedAssets[index]
+        let name = owned.asset?.name ?? "asset"
+        let proceeds = owned.equity
+        guard current.cash + proceeds >= 0 else {
+            return "You owe more on the \(name) than it's worth. You need $\(-proceeds) cash to cover the difference."
+        }
+        current.cash += proceeds
+        current.ownedAssets.remove(at: index)
+        character = current
+        SoundManager.shared.play(.cash)
+        let text: String
+        if owned.loanRemaining > 0 {
+            text = "You sold your \(name) for $\(owned.value). After paying off the mortgage you kept $\(proceeds)."
+        } else {
+            text = "You sold your \(name) for $\(proceeds)."
+        }
+        var log = yearLog
+        log.append(LogEntry(text: text, isAlert: false))
+        yearLog = log
+        return text
+    }
+
+    /// Takes money from cash first, then savings. Returns false if there
+    /// isn't enough between the two (and takes nothing).
+    private func pay(_ amount: Int, from character: inout Character) -> Bool {
+        guard amount > 0 else { return true }
+        guard character.cash + character.bankBalance >= amount else { return false }
+        let fromCash = min(character.cash, amount)
+        character.cash -= fromCash
+        character.bankBalance -= amount - fromCash
+        return true
+    }
+
+    /// Yearly: values drift, upkeep and mortgage payments come due, owners
+    /// get a happiness bump and the odd thing goes wrong.
+    private func handleAssets(_ character: inout Character, log: inout [LogEntry]) {
+        guard !character.ownedAssets.isEmpty else { return }
+        let name = character.firstName
+        var kept: [OwnedAsset] = []
+        var happiness = 0
+        var hadEvent = false
+
+        for var owned in character.ownedAssets {
+            guard let asset = owned.asset else { continue }
+            owned.yearsOwned += 1
+            let drift = asset.yearlyValueChange + Double.random(in: -0.04...0.04)
+            owned.value = max(0, Int(Double(owned.value) * (1 + drift)))
+
+            // Mortgage
+            if owned.loanRemaining > 0 {
+                let owed = Int(Double(owned.loanRemaining) * (1 + AssetData.mortgageInterestRate))
+                let payment = min(owned.yearlyPayment, owed)
+                if pay(payment, from: &character) {
+                    owned.loanRemaining = owed - payment
+                    if owned.loanRemaining <= 0 {
+                        owned.loanRemaining = 0
+                        log.append(LogEntry(text: "\(name) paid off the mortgage on their \(asset.name)! It's all theirs now.", isAlert: false))
+                    }
+                } else {
+                    let leftover = max(0, Int(Double(owned.value) * 0.7) - owned.loanRemaining)
+                    character.cash += leftover
+                    character.stats.adjust(happiness: -Int.random(in: 8...15))
+                    log.append(LogEntry(text: "\(name) couldn't make the $\(payment) mortgage payment. The bank foreclosed on the \(asset.name)\(leftover > 0 ? " and \(name) got $\(leftover) back" : "").", isAlert: true))
+                    SoundManager.shared.play(.sad)
+                    continue
+                }
+            }
+
+            // Upkeep
+            if !pay(owned.upkeep, from: &character) {
+                let salvage = max(0, owned.value / 2 - owned.loanRemaining)
+                character.cash += salvage
+                character.stats.adjust(happiness: -Int.random(in: 4...10))
+                log.append(LogEntry(text: "\(name) couldn't afford the $\(owned.upkeep) upkeep on their \(asset.name), so it was repossessed and sold off for $\(salvage).", isAlert: true))
+                continue
+            }
+
+            // At most one mishap a year across everything you own.
+            if !hadEvent, let mishap = assetMishap(&owned, asset: asset, character: &character) {
+                hadEvent = true
+                log.append(mishap)
+            }
+
+            happiness += asset.happiness
+            kept.append(owned)
+        }
+
+        character.ownedAssets = kept
+        if happiness > 0 {
+            character.stats.adjust(happiness: min(8, happiness / 2 + 1))
+        }
+    }
+
+    private func assetMishap(_ owned: inout OwnedAsset, asset: Asset, character: inout Character) -> LogEntry? {
+        let name = character.firstName
+        let roll = Double.random(in: 0...1)
+        switch asset.kind {
+        case .car, .motorcycle:
+            let crashChance = asset.kind == .motorcycle ? 0.06 : 0.03
+            guard roll < crashChance else { return nil }
+            owned.value = Int(Double(owned.value) * 0.7)
+            grantCondition(&character, id: character.stage == .senior ? "minor_injury" : (Bool.random() ? "broken_arm" : "minor_injury"))
+            attackTrigger += 1
+            SoundManager.shared.play(.ouch)
+            return LogEntry(text: "\(name) crashed their \(asset.name). They got hurt, and the \(asset.name) lost a big chunk of its value.", isAlert: true)
+        case .house:
+            guard roll < 0.04 else { return nil }
+            if Bool.random() {
+                let stolen = min(character.cash, localized(Int.random(in: 300...4_000), for: character))
+                character.cash -= stolen
+                character.stats.adjust(happiness: -Int.random(in: 3...8))
+                SoundManager.shared.play(.glassBreak)
+                return LogEntry(text: "Burglars broke into \(name)'s \(asset.name) and took $\(stolen) worth of stuff.", isAlert: true)
+            }
+            let repair = owned.upkeep
+            _ = pay(repair, from: &character)
+            SoundManager.shared.play(.alert)
+            return LogEntry(text: "A storm damaged \(name)'s \(asset.name). Repairs cost $\(repair).", isAlert: true)
+        case .boat:
+            guard roll < 0.03 else { return nil }
+            owned.value = Int(Double(owned.value) * 0.85)
+            SoundManager.shared.play(.alert)
+            return LogEntry(text: "\(name)'s \(asset.name) got caught in a storm and took some damage.", isAlert: true)
+        case .aircraft:
+            guard roll < 0.015 else { return nil }
+            owned.value = Int(Double(owned.value) * 0.8)
+            grantCondition(&character, id: "minor_injury")
+            SoundManager.shared.play(.ouch)
+            return LogEntry(text: "\(name)'s \(asset.name) had to make an emergency landing. Everyone walked away, barely.", isAlert: true)
+        }
     }
 
     func stockPrice(for stock: Stock, character: Character) -> Double {
@@ -940,6 +1154,7 @@ final class GameViewModel: ObservableObject {
     private func arrestChance(_ character: Character, base: Double, masked: Bool) -> Double {
         var chance = base + Double(character.policeHeat) / 250.0 + (character.isFugitive ? 0.15 : 0)
         if masked { chance *= 0.6 }
+        if character.hasGetawayVehicle { chance *= 0.9 }
         return min(0.92, max(0.01, chance))
     }
 

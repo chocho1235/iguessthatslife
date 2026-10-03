@@ -45,6 +45,7 @@ struct Character: Codable {
     var convictionList: [String]? = nil
     var policeHeatValue: Int? = nil
     var openCaseList: [OpenCase]? = nil
+    var ownedAssetList: [OwnedAsset]? = nil
     /// How many robberies this character has attempted — the police get
     /// better at catching up with you the more you push your luck.
     var robberyCount: Int = 0
@@ -70,6 +71,11 @@ struct Character: Codable {
         get { openCaseList ?? [] }
         set { openCaseList = newValue }
     }
+    var ownedAssets: [OwnedAsset] {
+        get { ownedAssetList ?? [] }
+        set { ownedAssetList = newValue }
+    }
+    var hasGetawayVehicle: Bool { ownedAssets.contains { $0.asset?.kind.isGetawayVehicle == true } }
     var hasCriminalRecord: Bool { criminalRecord > 0 }
     var isMasked: Bool { equippedAccessoryIDs[.face] == "balaclava" }
     var weapon: Weapon? { weaponName.flatMap { name in WeaponData.all.first { $0.name == name } } }

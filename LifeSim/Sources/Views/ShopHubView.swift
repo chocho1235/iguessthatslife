@@ -20,6 +20,11 @@ struct ShopHubView: View {
                     shopRow(icon: "tshirt.fill", color: .purple, title: "Clothing", subtitle: "Shirts, hoodies, suits, and more")
                 }
                 NavigationLink {
+                    AssetsView(viewModel: viewModel)
+                } label: {
+                    shopRow(icon: "car.fill", color: .green, title: "Assets", subtitle: "Cars, houses, yachts and jets")
+                }
+                NavigationLink {
                     WeaponShopView(viewModel: viewModel)
                 } label: {
                     shopRow(icon: "shield.lefthalf.filled", color: .red, title: "Weapons", subtitle: "Self-defense gear — some are illegal")

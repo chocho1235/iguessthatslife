@@ -69,6 +69,9 @@
 		B767371D68F031946CAF1A91 /* RouletteBet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5A8CB425040B5FD0D99AE0B /* RouletteBet.swift */; };
 		BC69B176B990AB99B41C29DB /* LifeEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBFB5CA3026FDF725487F624 /* LifeEvent.swift */; };
 		C4D50223AC587DC40587996C /* JobApplicationCutsceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B6007B7A2904594915715D /* JobApplicationCutsceneView.swift */; };
+		A55E70000000000000000012 /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55E70000000000000000011 /* Asset.swift */; };
+		A55E70000000000000000022 /* AssetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55E70000000000000000021 /* AssetData.swift */; };
+		A55E70000000000000000032 /* AssetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55E70000000000000000031 /* AssetsView.swift */; };
 		CBE5B375FC9BB0D7AB1A59FD /* Weapon.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */; };
 		D4033146C8AEDDE24B0ECFCD /* Robbery.swift in Sources */ = {isa = PBXBuildFile; fileRef = B603302A0DE0BDD25696C152 /* Robbery.swift */; };
 		D5EBD3AB73455DE2FA3FF2A1 /* EventData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B021CAC2A7011A87C852FA2 /* EventData.swift */; };
@@ -137,6 +140,9 @@
 		A085026D4DA3A717DFC724EB /* EducationLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EducationLevel.swift; sourceTree = "<group>"; };
 		A30913FFD322B94B2D14EABF /* LifeSim.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LifeSim.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A49299338383F60CA568A57C /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
+		A55E70000000000000000011 /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
+		A55E70000000000000000021 /* AssetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetData.swift; sourceTree = "<group>"; };
+		A55E70000000000000000031 /* AssetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetsView.swift; sourceTree = "<group>"; };
 		A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Weapon.swift; sourceTree = "<group>"; };
 		AA3FACFF17D809F9B72BDB93 /* StatBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatBarView.swift; sourceTree = "<group>"; };
 		AF2C2AD846375E5CEBEEBF67 /* CasinoGameScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasinoGameScreens.swift; sourceTree = "<group>"; };
@@ -218,6 +224,7 @@
 				A49299338383F60CA568A57C /* Stats.swift */,
 				45F121E42E8D5126A71D2A67 /* Stock.swift */,
 				A75C4D4EC9633DD8EC0D5D4B /* Weapon.swift */,
+				A55E70000000000000000011 /* Asset.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -298,6 +305,7 @@
 				018C2097B1E6E0D3255A3753 /* StartView.swift */,
 				AA3FACFF17D809F9B72BDB93 /* StatBarView.swift */,
 				7E72C831FF36892091044DD2 /* WeaponShopView.swift */,
+				A55E70000000000000000031 /* AssetsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -315,6 +323,7 @@
 				CB022AE9403EDAFB821D086D /* OutfitData.swift */,
 				1464093549896C6078DC2DAC /* StockData.swift */,
 				C1D83236157BCC115DC46FAE /* WeaponData.swift */,
+				A55E70000000000000000021 /* AssetData.swift */,
 				6938BAAE011B22F280AB829E /* YouthJobData.swift */,
 			);
 			path = Data;
@@ -465,6 +474,9 @@
 				73240A3AABCB92A6B3A4A326 /* Stock.swift in Sources */,
 				EE20245ADE7D3C3D3F1F8423 /* StockData.swift in Sources */,
 				CBE5B375FC9BB0D7AB1A59FD /* Weapon.swift in Sources */,
+				A55E70000000000000000032 /* AssetsView.swift in Sources */,
+				A55E70000000000000000022 /* AssetData.swift in Sources */,
+				A55E70000000000000000012 /* Asset.swift in Sources */,
 				4A706FA6D3272057B676EC6C /* WeaponData.swift in Sources */,
 				1FC68FD18E4B0FA767D1C025 /* WeaponShopView.swift in Sources */,
 				F6C1847515EFCFA7A5995D5A /* YouthJobData.swift in Sources */,
