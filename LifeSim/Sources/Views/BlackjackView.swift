@@ -4,22 +4,24 @@ struct BlackjackView: View {
     @ObservedObject var viewModel: GameViewModel
     @Environment(\.dismiss) private var dismiss
 
+    private typealias Phase = BlackjackTableView.Phase
+
     @State private var deck: [Card] = []
     @State private var playerCards: [Card] = []
     @State private var dealerCards: [Card] = []
     @State private var phase: Phase = .betting
-    @State private var bet: Int = 20
+    @State private var bet: Int = 0
     @State private var resultText: String?
     @State private var isDealerRevealed = false
 
-    private static let presets = [10, 20, 50, 100]
-
-    private enum Phase {
-        case betting
-        case playerTurn
-        case dealerTurn
-        case roundOver
-    }
+    /// At most one split is supported: `pendingHand` holds the second hand
+    /// (with its own bet) until the first is done being played, and
+    /// `finishedHands` collects every hand that's stopped playing — by bust
+    /// or by standing/doubling — so the dealer can resolve all of them in
+    /// one pass once nobody has cards left to act on.
+    @State private var pendingHand: (cards: [Card], bet: Int)?
+    @State private var finishedHands: [(cards: [Card], bet: Int, busted: Bool)] = []
+    @State private var hasSplit = false
 
     var character: Character { viewModel.character! }
 
@@ -37,22 +39,32 @@ struct BlackjackView: View {
                         Spacer()
                     }
                 } else {
-                    VStack(spacing: 0) {
-                        ScrollView {
-                            tableFelt
-                                .padding()
-                        }
-                        controls
-                    }
+                    BlackjackTableView(
+                        balance: "$\(character.cash)",
+                        cash: character.cash,
+                        phase: phase,
+                        handLabelSuffix: hasSplit ? "Hand \(finishedHands.count + 1) of 2" : nil,
+                        dealer: dealerCards.map { BlackjackTableView.Card(rank: $0.rank.label, suit: $0.suit.rawValue) },
+                        dealerHidden: !isDealerRevealed && dealerCards.count > 1,
+                        player: playerCards.map { BlackjackTableView.Card(rank: $0.rank.label, suit: $0.suit.rawValue) },
+                        dealerTotal: dealerCards.isEmpty ? "" : "\(BlackjackHand.value(of: dealerCards))",
+                        playerTotal: playerCards.isEmpty ? "" : "\(BlackjackHand.value(of: playerCards))",
+                        bet: "$\(bet)",
+                        canDouble: canDouble,
+                        canSplit: canSplit,
+                        resultText: resultText,
+                        onBack: { dismiss() },
+                        onDeal: { chipIndex in withAnimation { startRound(chipIndex: chipIndex) } },
+                        onHit: { withAnimation { hit() } },
+                        onStand: { withAnimation { stand() } },
+                        onDouble: { withAnimation { doubleDown() } },
+                        onSplit: { withAnimation { split() } },
+                        onNewRound: { withAnimation { resetToBetting() } }
+                    )
                 }
             }
-            .navigationTitle("Blackjack")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("💰 $\(character.cash)")
-                        .font(.headline)
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
@@ -60,127 +72,14 @@ struct BlackjackView: View {
         }
     }
 
-    private var tableFelt: some View {
-        VStack(spacing: 28) {
-            Text("BLACKJACK PAYS 3:2 · DEALER STANDS ON 17")
-                .font(.caption2.bold())
-                .foregroundStyle(.white.opacity(0.75))
-
-            handSection(title: "DEALER", cards: dealerCards, hideHoleCard: !isDealerRevealed)
-            handSection(title: "YOU", cards: playerCards, hideHoleCard: false)
-        }
-        .padding(.vertical, 28)
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(
-                    RadialGradient(
-                        colors: [Color(red: 0.07, green: 0.42, blue: 0.22), Color(red: 0.03, green: 0.20, blue: 0.11)],
-                        center: .center,
-                        startRadius: 20,
-                        endRadius: 280
-                    )
-                )
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(Color(red: 0.55, green: 0.38, blue: 0.16), lineWidth: 6)
-        }
+    private var canDouble: Bool {
+        phase == .playerTurn && playerCards.count == 2 && character.cash >= bet
     }
 
-    private func handSection(title: String, cards: [Card], hideHoleCard: Bool) -> some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text(title)
-                    .font(.caption.bold())
-                    .foregroundStyle(.white.opacity(0.85))
-                Spacer()
-                if !cards.isEmpty {
-                    Text(hideHoleCard ? "?" : "\(BlackjackHand.value(of: cards))")
-                        .font(.caption.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(.white.opacity(0.15))
-                        .clipShape(Capsule())
-                }
-            }
-            HStack(spacing: -16) {
-                ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
-                    PlayingCardView(card: card, faceDown: hideHoleCard && index == 1)
-                }
-            }
-            .frame(minHeight: 90)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    @ViewBuilder
-    private var controls: some View {
-        VStack(spacing: 12) {
-            if let resultText {
-                Text(resultText)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.blue)
-                    .multilineTextAlignment(.center)
-            }
-
-            switch phase {
-            case .betting:
-                Stepper("Bet: $\(bet)", value: $bet, in: 1...1_000_000, step: 5)
-                HStack {
-                    ForEach(Self.presets, id: \.self) { preset in
-                        Button("$\(preset)") { bet = preset }
-                            .buttonStyle(.bordered)
-                    }
-                }
-                Button {
-                    withAnimation { startRound() }
-                } label: {
-                    Text("Deal").frame(maxWidth: .infinity).padding()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
-                .disabled(character.cash < bet)
-
-            case .playerTurn:
-                HStack(spacing: 12) {
-                    Button {
-                        withAnimation { hit() }
-                    } label: {
-                        Text("Hit").frame(maxWidth: .infinity).padding()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.blue)
-
-                    Button {
-                        withAnimation { stand() }
-                    } label: {
-                        Text("Stand").frame(maxWidth: .infinity).padding()
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.orange)
-                }
-
-            case .dealerTurn:
-                Text("Dealer is playing...")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 6)
-
-            case .roundOver:
-                Button {
-                    withAnimation { resetToBetting() }
-                } label: {
-                    Text("New Round").frame(maxWidth: .infinity).padding()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
-            }
-        }
-        .padding()
-        .background(.ultraThinMaterial)
+    private var canSplit: Bool {
+        phase == .playerTurn && !hasSplit && playerCards.count == 2
+            && playerCards[0].rank.blackjackValue == playerCards[1].rank.blackjackValue
+            && character.cash >= bet
     }
 
     private func draw() -> Card {
@@ -188,15 +87,20 @@ struct BlackjackView: View {
         return deck.removeLast()
     }
 
-    private func startRound() {
-        guard viewModel.placeBlackjackBet(bet) else {
-            resultText = "You don't have $\(bet) to bet."
+    private func startRound(chipIndex: Int) {
+        let amount = CasinoArt.betAmount(chipIndex: chipIndex, cash: character.cash)
+        guard viewModel.placeBlackjackBet(amount) else {
+            resultText = "You don't have $\(amount) to bet."
             return
         }
 
+        bet = amount
         deck = BlackjackHand.freshShuffledDeck()
         playerCards = [draw(), draw()]
         dealerCards = [draw(), draw()]
+        pendingHand = nil
+        finishedHands = []
+        hasSplit = false
         isDealerRevealed = false
         resultText = nil
 
@@ -212,24 +116,56 @@ struct BlackjackView: View {
     private func hit() {
         playerCards.append(draw())
         if BlackjackHand.isBust(playerCards) {
-            isDealerRevealed = true
-            phase = .roundOver
-            resultText = viewModel.settleBlackjack(bet: bet, outcome: .lose)
+            advancePastActiveHand(busted: true)
         }
     }
 
     private func stand() {
-        phase = .dealerTurn
-        isDealerRevealed = true
-        dealerPlayStep()
+        advancePastActiveHand(busted: false)
+    }
+
+    private func doubleDown() {
+        guard canDouble, viewModel.placeBlackjackBet(bet) else { return }
+        bet *= 2
+        playerCards.append(draw())
+        advancePastActiveHand(busted: BlackjackHand.isBust(playerCards))
+    }
+
+    private func split() {
+        guard canSplit, viewModel.placeBlackjackBet(bet) else { return }
+        let first = [playerCards[0], draw()]
+        let second = [playerCards[1], draw()]
+        pendingHand = (second, bet)
+        playerCards = first
+        hasSplit = true
+    }
+
+    /// Call once the active hand is done being played (bust, stand, or a
+    /// completed double). Moves on to the queued split hand if there is
+    /// one, otherwise lets the dealer play out against everything finished.
+    private func advancePastActiveHand(busted: Bool) {
+        finishedHands.append((playerCards, bet, busted))
+        if let next = pendingHand {
+            pendingHand = nil
+            playerCards = next.cards
+            bet = next.bet
+            // A fresh two-card hand might itself be worth standing on
+            // immediately if it busts somehow is impossible here, so just
+            // keep playing it normally.
+            phase = .playerTurn
+        } else {
+            phase = .dealerTurn
+            isDealerRevealed = true
+            dealerPlayStep()
+        }
     }
 
     /// Dealer draws one card at a time with a short pause between each, so
     /// the hand plays out rather than snapping straight to the result.
     private func dealerPlayStep() {
-        let playerHasNatural = BlackjackHand.isNatural(playerCards)
-        let playerBusted = BlackjackHand.isBust(playerCards)
-        if !playerBusted, !playerHasNatural, BlackjackHand.value(of: dealerCards) < 17 {
+        let allBusted = finishedHands.allSatisfy(\.busted)
+        let playerHasNatural = !hasSplit && finishedHands.count == 1 && BlackjackHand.isNatural(finishedHands[0].cards)
+        if !allBusted, !playerHasNatural, BlackjackHand.value(of: dealerCards) < 17 {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 withAnimation { dealerCards.append(draw()) }
                 dealerPlayStep()
@@ -241,37 +177,37 @@ struct BlackjackView: View {
 
     private func finishRound() {
         phase = .roundOver
-        let playerValue = BlackjackHand.value(of: playerCards)
         let dealerValue = BlackjackHand.value(of: dealerCards)
-        let playerNatural = BlackjackHand.isNatural(playerCards)
-        let dealerNatural = BlackjackHand.isNatural(dealerCards)
+        let dealerNatural = !hasSplit && BlackjackHand.isNatural(dealerCards)
 
-        let outcome: BlackjackOutcome
-        if playerValue > 21 {
-            outcome = .lose
-        } else if playerNatural && dealerNatural {
-            outcome = .push
-        } else if playerNatural {
-            outcome = .blackjack
-        } else if dealerNatural {
-            outcome = .lose
-        } else if dealerValue > 21 {
-            outcome = .win
-        } else if playerValue > dealerValue {
-            outcome = .win
-        } else if playerValue == dealerValue {
-            outcome = .push
-        } else {
-            outcome = .lose
+        let texts = finishedHands.map { hand -> String in
+            let outcome = outcome(for: hand, dealerValue: dealerValue, dealerNatural: dealerNatural)
+            return viewModel.settleBlackjack(bet: hand.bet, outcome: outcome)
         }
+        resultText = texts.joined(separator: " ")
+    }
 
-        resultText = viewModel.settleBlackjack(bet: bet, outcome: outcome)
+    private func outcome(for hand: (cards: [Card], bet: Int, busted: Bool), dealerValue: Int, dealerNatural: Bool) -> BlackjackOutcome {
+        if hand.busted { return .lose }
+        let playerValue = BlackjackHand.value(of: hand.cards)
+        let playerNatural = !hasSplit && finishedHands.count == 1 && BlackjackHand.isNatural(hand.cards)
+
+        if playerNatural && dealerNatural { return .push }
+        if playerNatural { return .blackjack }
+        if dealerNatural { return .lose }
+        if dealerValue > 21 { return .win }
+        if playerValue > dealerValue { return .win }
+        if playerValue == dealerValue { return .push }
+        return .lose
     }
 
     private func resetToBetting() {
         phase = .betting
         playerCards = []
         dealerCards = []
+        pendingHand = nil
+        finishedHands = []
+        hasSplit = false
         resultText = nil
     }
 }

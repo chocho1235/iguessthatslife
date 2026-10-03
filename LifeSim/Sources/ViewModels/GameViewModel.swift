@@ -231,14 +231,8 @@ final class GameViewModel: ObservableObject {
     }
 
     private func pocketMoneyText(for character: Character, amount: Int) -> String {
-        switch character.age {
-        case 6...12:
-            return "You saved $\(amount) in pocket money."
-        case 13...17:
-            return "You earned $\(amount) from chores and odd jobs."
-        default:
-            return "You received $\(amount)."
-        }
+        guard (6...17).contains(character.age) else { return "You received $\(amount)." }
+        return YouthJobData.text(for: character, amount: amount)
     }
 
     private static let savingsInterestRate = 0.04
@@ -326,33 +320,101 @@ final class GameViewModel: ObservableObject {
         return "Sold \(shares) share\(shares == 1 ? "" : "s") of \(stock.symbol) for $\(proceeds)."
     }
 
+    /// A real heads/tails outcome (not just an abstract win-chance roll) so
+    /// the coin art can show the side that actually landed.
     @discardableResult
-    func gamble(_ amount: Int, game: GambleGame) -> String {
-        guard var current = character else { return "" }
-        guard current.age >= 18 else { return "You must be 18 to gamble." }
-        guard amount > 0 else { return "" }
-        guard current.cash >= amount else { return "You don't have $\(amount) to bet." }
-
+    func flipCoin(_ amount: Int, callHeads: Bool) -> (landedHeads: Bool, text: String) {
+        guard var current = character, current.age >= 18, amount > 0, current.cash >= amount else {
+            return (true, "You don't have $\(amount) to bet.")
+        }
         current.cash -= amount
-        let won = Double.random(in: 0...1) < game.winChance
+        let landedHeads = Bool.random()
+        let won = landedHeads == callHeads
         let text: String
         if won {
-            let payout = Int(Double(amount) * game.payoutMultiplier)
+            let payout = amount * 2
             current.cash += payout
             current.stats.adjust(happiness: Int.random(in: 4...10))
-            text = "You won $\(payout) at \(game.rawValue)!"
+            text = "\(landedHeads ? "Heads" : "Tails")! You won $\(payout)."
             SoundManager.shared.play(.success)
         } else {
             current.stats.adjust(happiness: -Int.random(in: 3...8))
-            text = "You lost your $\(amount) bet at \(game.rawValue)."
+            text = "\(landedHeads ? "Heads" : "Tails") — you lost your $\(amount) bet."
             SoundManager.shared.play(.rejected)
         }
         character = current
-        return text
+        return (landedHeads, text)
     }
 
-    /// Deducts the bet up front, same as `gamble` — the table rounds pay
-    /// back according to the outcome once the hand is settled.
+    /// Settles every active bet against one spin of the wheel. Bets are
+    /// deducted up front as a single total; winnings from each covered bet
+    /// are added back once the ball drops.
+    @discardableResult
+    func spinRoulette(_ bets: [RouletteBetKind: Int]) -> (result: Int, text: String) {
+        let total = bets.values.reduce(0, +)
+        guard var current = character, current.age >= 18, total > 0, current.cash >= total else {
+            return (0, "You don't have $\(total) to cover that bet.")
+        }
+        current.cash -= total
+
+        let result = Int.random(in: 0...36)
+        var winnings = 0
+        for (kind, amount) in bets where kind.wins(for: result) {
+            winnings += amount + amount * kind.payoutMultiple
+        }
+        current.cash += winnings
+
+        let color = result == 0 ? "green" : (RouletteNumbers.reds.contains(result) ? "red" : "black")
+        let text: String
+        if winnings > total {
+            current.stats.adjust(happiness: Int.random(in: 4...10))
+            text = "The ball landed on \(result) (\(color)). You won $\(winnings - total)!"
+            SoundManager.shared.play(.success)
+        } else if winnings > 0 {
+            text = "The ball landed on \(result) (\(color)). You broke even."
+            SoundManager.shared.play(.tap)
+        } else {
+            current.stats.adjust(happiness: -Int.random(in: 3...8))
+            text = "The ball landed on \(result) (\(color)). You lost your $\(total) bet."
+            SoundManager.shared.play(.rejected)
+        }
+        character = current
+        return (result, text)
+    }
+
+    /// Classic "will the next roll be higher or lower" dice game. The view
+    /// owns the running roll between calls and passes the previous total in.
+    @discardableResult
+    func rollHighOrLow(_ amount: Int, previousTotal: Int, guessHigher: Bool) -> (dice: (Int, Int), text: String) {
+        guard var current = character, current.age >= 18, amount > 0, current.cash >= amount else {
+            return ((1, 1), "You don't have $\(amount) to bet.")
+        }
+        current.cash -= amount
+        let dice = (Int.random(in: 1...6), Int.random(in: 1...6))
+        let newTotal = dice.0 + dice.1
+        let text: String
+        if newTotal == previousTotal {
+            current.cash += amount
+            text = "Rolled \(newTotal) — a push. Your $\(amount) bet was returned."
+            SoundManager.shared.play(.tap)
+        } else if (newTotal > previousTotal) == guessHigher {
+            let payout = amount * 2
+            current.cash += payout
+            current.stats.adjust(happiness: Int.random(in: 4...10))
+            text = "Rolled \(newTotal). You called it right and won $\(payout)."
+            SoundManager.shared.play(.success)
+        } else {
+            current.stats.adjust(happiness: -Int.random(in: 3...8))
+            text = "Rolled \(newTotal). You called it wrong and lost your $\(amount) bet."
+            SoundManager.shared.play(.rejected)
+        }
+        character = current
+        return (dice, text)
+    }
+
+    /// Deducts a bet up front — used for the initial deal, a double down,
+    /// or a split's matching second bet. The table pays out once the
+    /// relevant hand is settled.
     @discardableResult
     func placeBlackjackBet(_ amount: Int) -> Bool {
         guard var current = character, current.age >= 18, amount > 0, current.cash >= amount else { return false }

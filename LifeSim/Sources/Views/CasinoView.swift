@@ -1,113 +1,49 @@
 import SwiftUI
 
+/// The casino lobby — a grid of tables rather than a plain list, each
+/// pushing its own fully art-directed game screen.
 struct CasinoView: View {
     @ObservedObject var viewModel: GameViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var bet: Int = 20
-    @State private var feedback: String?
-
-    private static let presets = [10, 20, 50, 100]
+    @State private var path: [CasinoGame] = []
 
     var character: Character { viewModel.character! }
 
     var body: some View {
-        NavigationStack {
-            List {
+        NavigationStack(path: $path) {
+            Group {
                 if character.age < 18 {
-                    Section {
+                    VStack {
+                        Spacer()
                         Text("You must be 18 to gamble. Come back when you're older.")
-                            .font(.subheadline.bold())
+                            .font(.headline.bold())
                             .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                        Spacer()
                     }
                 } else {
-                    if let feedback {
-                        Section {
-                            Text(feedback)
-                                .font(.subheadline.bold())
-                                .foregroundStyle(.blue)
-                        }
-                    }
-
-                    Section("Bet Amount") {
-                        Stepper("Bet: $\(bet)", value: $bet, in: 1...1_000_000, step: 5)
-                        HStack {
-                            ForEach(Self.presets, id: \.self) { preset in
-                                Button("$\(preset)") { bet = preset }
-                                    .buttonStyle(.bordered)
-                            }
-                        }
-                    }
-
-                    Section("Table Games") {
-                        NavigationLink {
-                            BlackjackView(viewModel: viewModel)
-                        } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "suit.spade.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(.white)
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.green.gradient)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Blackjack").font(.subheadline.bold())
-                                    Text("Real cards, real table. Beat the dealer to 21.")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-
-                    Section("Quick Games") {
-                        ForEach(GambleGame.allCases) { game in
-                            gameRow(game)
-                        }
-                    }
-
-                    Section {
-                        Text("The house usually wins. Only bet what you can afford to lose.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    CasinoLobbyView(
+                        balance: "$\(character.cash)",
+                        onBack: { dismiss() },
+                        onSelect: { game in path.append(game) }
+                    )
                 }
             }
-            .navigationTitle("Casino")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("💰 $\(character.cash)")
-                        .font(.headline)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: CasinoGame.self) { game in
+                switch game {
+                case .coinFlip:
+                    CoinFlipGameView(viewModel: viewModel).toolbar(.hidden, for: .navigationBar)
+                case .blackjack:
+                    BlackjackView(viewModel: viewModel)
+                case .roulette:
+                    RouletteGameView(viewModel: viewModel).toolbar(.hidden, for: .navigationBar)
+                case .dice:
+                    HighLowGameView(viewModel: viewModel).toolbar(.hidden, for: .navigationBar)
                 }
             }
         }
-    }
-
-    private func gameRow(_ game: GambleGame) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: game.icon)
-                .font(.title2)
-                .foregroundStyle(.purple)
-                .frame(width: 36)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(game.rawValue).font(.subheadline.bold())
-                Text(game.subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button("Play") {
-                withAnimation { feedback = viewModel.gamble(bet, game: game) }
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.purple)
-            .disabled(character.cash < bet)
-        }
-        .padding(.vertical, 4)
     }
 }
 
