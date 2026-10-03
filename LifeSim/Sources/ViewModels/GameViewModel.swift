@@ -321,7 +321,10 @@ final class GameViewModel: ObservableObject {
     }
 
     /// A real heads/tails outcome (not just an abstract win-chance roll) so
-    /// the coin art can show the side that actually landed.
+    /// the coin art can show the side that actually landed. Cash and stats
+    /// are settled immediately, but the win/lose chime is deliberately left
+    /// to the caller — the coin takes a moment to visually flip, and the
+    /// sound shouldn't give the result away before it lands.
     @discardableResult
     func flipCoin(_ amount: Int, callHeads: Bool) -> (landedHeads: Bool, text: String) {
         guard var current = character, current.age >= 18, amount > 0, current.cash >= amount else {
@@ -336,11 +339,9 @@ final class GameViewModel: ObservableObject {
             current.cash += payout
             current.stats.adjust(happiness: Int.random(in: 4...10))
             text = "\(landedHeads ? "Heads" : "Tails")! You won $\(payout)."
-            SoundManager.shared.play(.success)
         } else {
             current.stats.adjust(happiness: -Int.random(in: 3...8))
             text = "\(landedHeads ? "Heads" : "Tails") — you lost your $\(amount) bet."
-            SoundManager.shared.play(.rejected)
         }
         character = current
         return (landedHeads, text)
@@ -348,7 +349,9 @@ final class GameViewModel: ObservableObject {
 
     /// Settles every active bet against one spin of the wheel. Bets are
     /// deducted up front as a single total; winnings from each covered bet
-    /// are added back once the ball drops.
+    /// are added back once the ball drops. As with `flipCoin`, the result
+    /// chime is left to the caller so it lands with the wheel, not before it
+    /// even starts spinning.
     @discardableResult
     func spinRoulette(_ bets: [RouletteBetKind: Int]) -> (result: Int, text: String) {
         let total = bets.values.reduce(0, +)
@@ -369,14 +372,11 @@ final class GameViewModel: ObservableObject {
         if winnings > total {
             current.stats.adjust(happiness: Int.random(in: 4...10))
             text = "The ball landed on \(result) (\(color)). You won $\(winnings - total)!"
-            SoundManager.shared.play(.success)
         } else if winnings > 0 {
             text = "The ball landed on \(result) (\(color)). You broke even."
-            SoundManager.shared.play(.tap)
         } else {
             current.stats.adjust(happiness: -Int.random(in: 3...8))
             text = "The ball landed on \(result) (\(color)). You lost your $\(total) bet."
-            SoundManager.shared.play(.rejected)
         }
         character = current
         return (result, text)
@@ -384,6 +384,7 @@ final class GameViewModel: ObservableObject {
 
     /// Classic "will the next roll be higher or lower" dice game. The view
     /// owns the running roll between calls and passes the previous total in.
+    /// Sound is left to the caller — see `flipCoin`.
     @discardableResult
     func rollHighOrLow(_ amount: Int, previousTotal: Int, guessHigher: Bool) -> (dice: (Int, Int), text: String) {
         guard var current = character, current.age >= 18, amount > 0, current.cash >= amount else {
@@ -396,17 +397,14 @@ final class GameViewModel: ObservableObject {
         if newTotal == previousTotal {
             current.cash += amount
             text = "Rolled \(newTotal) — a push. Your $\(amount) bet was returned."
-            SoundManager.shared.play(.tap)
         } else if (newTotal > previousTotal) == guessHigher {
             let payout = amount * 2
             current.cash += payout
             current.stats.adjust(happiness: Int.random(in: 4...10))
             text = "Rolled \(newTotal). You called it right and won $\(payout)."
-            SoundManager.shared.play(.success)
         } else {
             current.stats.adjust(happiness: -Int.random(in: 3...8))
             text = "Rolled \(newTotal). You called it wrong and lost your $\(amount) bet."
-            SoundManager.shared.play(.rejected)
         }
         character = current
         return (dice, text)

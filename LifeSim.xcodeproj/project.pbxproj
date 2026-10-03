@@ -30,7 +30,6 @@
 		4A706FA6D3272057B676EC6C /* WeaponData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D83236157BCC115DC46FAE /* WeaponData.swift */; };
 		4CAD48B416CA854D474432D5 /* InterviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47B50931C61679879909248 /* InterviewData.swift */; };
 		5087D6412618F86ED0C1C9D8 /* GameOverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA2095FE328DFF72A52D243 /* GameOverView.swift */; };
-		557AC7AAD833644F73E5FC42 /* PlayingCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C00C48F709555FF5B93038 /* PlayingCardView.swift */; };
 		5581C48A30CD092B739EA224 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33EF9AA39DF2EC37996EEC0 /* Friend.swift */; };
 		562CDB1EDBF645C1A64C6E98 /* JobApplicationOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DEFAF6204EFC1CF0D95D074 /* JobApplicationOutcome.swift */; };
 		5CEC6E8F6807375097BAF0BF /* ClothingShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F69A444E9462F43EB959B677 /* ClothingShopView.swift */; };
@@ -61,6 +60,7 @@
 		9DE06E1AA76AC7E845BCB78D /* CultureRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B94748765106B6478DE17C /* CultureRegion.swift */; };
 		9F923B2C45BA402F3D2FEBFD /* CheckupCutsceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E85E543CB1F0D833B1E3AE4 /* CheckupCutsceneView.swift */; };
 		A844649CDBE605525F3A31A8 /* CasinoArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE09A97C3995CB90689D7001 /* CasinoArtwork.swift */; };
+		CBCB370B8BE0A5B1EA823E63 /* CasinoAnimations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4C58121C489565B406ACA66 /* CasinoAnimations.swift */; };
 		AF0915785488327A829E5D57 /* Accessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5418A06147AECE762D53415A /* Accessory.swift */; };
 		B2A85308AB72B5622FC835F8 /* PersonDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAFAA6748BD5B24E4CDBE78 /* PersonDetailView.swift */; };
 		B595ACD02E372299A81F9D5B /* MigrationQuizView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0E4DE72C3AB269C72E314B /* MigrationQuizView.swift */; };
@@ -107,7 +107,6 @@
 		4B021CAC2A7011A87C852FA2 /* EventData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventData.swift; sourceTree = "<group>"; };
 		53C4F4296CE4C980B78D63DE /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
 		5418A06147AECE762D53415A /* Accessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Accessory.swift; sourceTree = "<group>"; };
-		54C00C48F709555FF5B93038 /* PlayingCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayingCardView.swift; sourceTree = "<group>"; };
 		5A87B6C91687DA5A6DC37915 /* SpeechBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechBubble.swift; sourceTree = "<group>"; };
 		5FA2095FE328DFF72A52D243 /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
 		5FC0FF1237A03EE47BD04F4A /* FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsView.swift; sourceTree = "<group>"; };
@@ -165,6 +164,7 @@
 		F69A444E9462F43EB959B677 /* ClothingShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClothingShopView.swift; sourceTree = "<group>"; };
 		FBEBD53A5E34A5282F14B679 /* Outfit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Outfit.swift; sourceTree = "<group>"; };
 		FE09A97C3995CB90689D7001 /* CasinoArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasinoArtwork.swift; sourceTree = "<group>"; };
+		A4C58121C489565B406ACA66 /* CasinoAnimations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasinoAnimations.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -269,6 +269,7 @@
 				F4861EADF92B426AA477F6F8 /* BlackjackView.swift */,
 				D56163B56029529903DBB343 /* CareerView.swift */,
 				FE09A97C3995CB90689D7001 /* CasinoArtwork.swift */,
+				A4C58121C489565B406ACA66 /* CasinoAnimations.swift */,
 				AF2C2AD846375E5CEBEEBF67 /* CasinoGameScreens.swift */,
 				8E52476CFDA8500249141B19 /* CasinoIntroView.swift */,
 				1A40F22AEF5F4925BAF453C1 /* CasinoView.swift */,
@@ -287,7 +288,6 @@
 				EE0E4DE72C3AB269C72E314B /* MigrationQuizView.swift */,
 				1ABB7C2F7594AD52927C5989 /* PartnerView.swift */,
 				6BAFAA6748BD5B24E4CDBE78 /* PersonDetailView.swift */,
-				54C00C48F709555FF5B93038 /* PlayingCardView.swift */,
 				8BBBEC76BFB6FE0A72A29266 /* SavingsView.swift */,
 				66AC5D8E6F50F35CF3264A33 /* ShopHubView.swift */,
 				38288ABAC88A035D57BEF508 /* ShopView.swift */,
@@ -399,6 +399,7 @@
 				76CB323D955F3DC0D147237A /* BlackjackView.swift in Sources */,
 				EF8B7F7EF13EFC0B3DED8629 /* CareerView.swift in Sources */,
 				A844649CDBE605525F3A31A8 /* CasinoArtwork.swift in Sources */,
+				CBCB370B8BE0A5B1EA823E63 /* CasinoAnimations.swift in Sources */,
 				F8CDA6EC951E3910ED70E90B /* CasinoGameScreens.swift in Sources */,
 				27F9187CB917023D375D91AD /* CasinoIntroView.swift in Sources */,
 				9D5E345C0DCAE8A8C866D0D6 /* CasinoView.swift in Sources */,
@@ -445,7 +446,6 @@
 				E2140F7A8CF6B3D23D39F018 /* PartnerView.swift in Sources */,
 				B2A85308AB72B5622FC835F8 /* PersonDetailView.swift in Sources */,
 				7F64C49B4253A9EB84794BAE /* PersonSelection.swift in Sources */,
-				557AC7AAD833644F73E5FC42 /* PlayingCardView.swift in Sources */,
 				921BDA30A9A2E5DBA0D854FF /* RelationshipHistory.swift in Sources */,
 				D4033146C8AEDDE24B0ECFCD /* Robbery.swift in Sources */,
 				B767371D68F031946CAF1A91 /* RouletteBet.swift in Sources */,

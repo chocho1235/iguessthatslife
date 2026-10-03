@@ -25,49 +25,42 @@ struct BlackjackView: View {
 
     var character: Character { viewModel.character! }
 
+    /// Only the cards that count toward the displayed dealer total right
+    /// now — the hole card is excluded until it's actually revealed, so the
+    /// total on screen never gives away the dealer's hand early. The full
+    /// `dealerCards` still gets passed down to the table so the hole card
+    /// can play its flip-reveal animation instead of just popping in.
+    private var visibleDealerCards: [Card] {
+        isDealerRevealed ? dealerCards : Array(dealerCards.prefix(1))
+    }
+
     var body: some View {
-        NavigationStack {
-            Group {
-                if character.age < 18 {
-                    VStack {
-                        Spacer()
-                        Text("You must be 18 to play blackjack.")
-                            .font(.headline)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                        Spacer()
-                    }
-                } else {
-                    BlackjackTableView(
-                        balance: "$\(character.cash)",
-                        cash: character.cash,
-                        phase: phase,
-                        handLabelSuffix: hasSplit ? "Hand \(finishedHands.count + 1) of 2" : nil,
-                        dealer: dealerCards.map { BlackjackTableView.Card(rank: $0.rank.label, suit: $0.suit.rawValue) },
-                        dealerHidden: !isDealerRevealed && dealerCards.count > 1,
-                        player: playerCards.map { BlackjackTableView.Card(rank: $0.rank.label, suit: $0.suit.rawValue) },
-                        dealerTotal: dealerCards.isEmpty ? "" : "\(BlackjackHand.value(of: dealerCards))",
-                        playerTotal: playerCards.isEmpty ? "" : "\(BlackjackHand.value(of: playerCards))",
-                        bet: "$\(bet)",
-                        canDouble: canDouble,
-                        canSplit: canSplit,
-                        resultText: resultText,
-                        onBack: { dismiss() },
-                        onDeal: { chipIndex in withAnimation { startRound(chipIndex: chipIndex) } },
-                        onHit: { withAnimation { hit() } },
-                        onStand: { withAnimation { stand() } },
-                        onDouble: { withAnimation { doubleDown() } },
-                        onSplit: { withAnimation { split() } },
-                        onNewRound: { withAnimation { resetToBetting() } }
-                    )
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
+        Group {
+            if character.age < 18 {
+                CasinoAgeGateView(title: "Blackjack", onBack: { dismiss() })
+            } else {
+                BlackjackTableView(
+                    balance: "$\(character.cash)",
+                    cash: character.cash,
+                    phase: phase,
+                    handLabelSuffix: hasSplit ? "Hand \(finishedHands.count + 1) of 2" : nil,
+                    dealer: dealerCards.map { BlackjackTableView.Card(rank: $0.rank.label, suit: $0.suit.rawValue) },
+                    dealerHidden: !isDealerRevealed && dealerCards.count > 1,
+                    player: playerCards.map { BlackjackTableView.Card(rank: $0.rank.label, suit: $0.suit.rawValue) },
+                    dealerTotal: visibleDealerCards.isEmpty ? "" : "\(BlackjackHand.value(of: visibleDealerCards))",
+                    playerTotal: playerCards.isEmpty ? "" : "\(BlackjackHand.value(of: playerCards))",
+                    bet: "$\(bet)",
+                    canDouble: canDouble,
+                    canSplit: canSplit,
+                    resultText: resultText,
+                    onBack: { dismiss() },
+                    onDeal: { chipIndex in withAnimation { startRound(chipIndex: chipIndex) } },
+                    onHit: { withAnimation { hit() } },
+                    onStand: { withAnimation { stand() } },
+                    onDouble: { withAnimation { doubleDown() } },
+                    onSplit: { withAnimation { split() } },
+                    onNewRound: { withAnimation { resetToBetting() } }
+                )
             }
         }
     }

@@ -13,15 +13,7 @@ struct CasinoView: View {
         NavigationStack(path: $path) {
             Group {
                 if character.age < 18 {
-                    VStack {
-                        Spacer()
-                        Text("You must be 18 to gamble. Come back when you're older.")
-                            .font(.headline.bold())
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                        Spacer()
-                    }
+                    CasinoAgeGateView(title: "Casino", onBack: { dismiss() })
                 } else {
                     CasinoLobbyView(
                         balance: "$\(character.cash)",
@@ -36,7 +28,7 @@ struct CasinoView: View {
                 case .coinFlip:
                     CoinFlipGameView(viewModel: viewModel).toolbar(.hidden, for: .navigationBar)
                 case .blackjack:
-                    BlackjackView(viewModel: viewModel)
+                    BlackjackView(viewModel: viewModel).toolbar(.hidden, for: .navigationBar)
                 case .roulette:
                     RouletteGameView(viewModel: viewModel).toolbar(.hidden, for: .navigationBar)
                 case .dice:

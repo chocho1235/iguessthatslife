@@ -5,9 +5,10 @@
 //  Code-drawn artwork for the casino: the lobby tiles and a table screen for
 //  Coin Flip, Blackjack, Roulette and High or Low dice. Pure SwiftUI shapes, no assets.
 //
-//  The screens are layouts only. They hold sample values and call closures
-//  (onBack, onFlip, onHit ...) so your game logic can drive them.
-//  If you'd rather use your existing PlayingCardView, swap it in for CasinoCardFace.
+//  The screens are layouts first. They hold sample values and call closures
+//  (onBack, onFlip, onHit ...); CasinoGameScreens.swift and BlackjackView.swift
+//  wire them up to real GameViewModel state, and CasinoAnimations.swift adds
+//  the coin flip / dice tumble / roulette spin / card flip animations on top.
 //
 
 import SwiftUI
@@ -114,6 +115,55 @@ struct GoldButton: View {
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(filled ? .clear : CasinoArt.gold.opacity(0.6), lineWidth: 2))
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Shown in place of a table when the player isn't old enough to gamble —
+/// styled like the rest of the casino rather than a plain system alert.
+struct CasinoAgeGateView: View {
+    var title: String
+    var onBack: () -> Void = {}
+    var body: some View {
+        ZStack {
+            CasinoBackground(colors: [CasinoArt.hex(0x2A0B10), CasinoArt.hex(0x0C0406), CasinoArt.hex(0x050807)])
+            VStack(spacing: 0) {
+                HStack {
+                    Button(action: onBack) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(CasinoArt.cream)
+                            .frame(width: 44, height: 44)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(.black.opacity(0.35)))
+                    }
+                    .accessibilityLabel("Back")
+                    Spacer()
+                }
+                Spacer()
+                VStack(spacing: 18) {
+                    ZStack {
+                        Circle().fill(.black.opacity(0.4)).frame(width: 96, height: 96)
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(CasinoArt.gold)
+                    }
+                    .overlay(Circle().strokeBorder(CasinoArt.gold.opacity(0.6), lineWidth: 2).frame(width: 96, height: 96))
+                    VStack(spacing: 8) {
+                        Text(title).font(.system(size: 22, weight: .heavy)).foregroundStyle(CasinoArt.cream)
+                        Text("You must be 18 to gamble. Come back when you're older.")
+                            .font(.system(size: 14))
+                            .foregroundStyle(CasinoArt.muted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                    }
+                }
+                Spacer()
+                GoldButton(title: "Go Back", filled: false, action: onBack)
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 24)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+        }
     }
 }
 
@@ -486,6 +536,9 @@ struct CoinFlipView: View {
     var cash = 0
     var lastFlips: [Bool] = []   // true = heads
     var resultText: String? = nil
+    var isFlipping = false
+    var coinResult = true
+    var spinToken = 0
     var onBack: () -> Void = {}
     var onFlip: (_ heads: Bool, _ chipIndex: Int) -> Void = { _, _ in }
 
@@ -505,7 +558,7 @@ struct CoinFlipView: View {
                     Circle().trim(from: 0, to: 0.5).stroke(CasinoArt.gold.opacity(0.3), lineWidth: 2)
                         .frame(width: 256, height: 256).rotationEffect(.degrees(70))
                     Ellipse().fill(.black.opacity(0.45)).frame(width: 170, height: 22).blur(radius: 6).offset(y: 132)
-                    GoldCoin(size: 210, caption: "HEADS")
+                    FlippingCoinView(size: 210, result: coinResult, spinToken: spinToken)
                 }
                 .frame(height: 280)
 
@@ -522,8 +575,11 @@ struct CoinFlipView: View {
                     .padding(.bottom, 12)
                 HStack(spacing: 12) {
                     callButton("Heads", symbol: "JL", selected: callHeads) { callHeads = true }
+                        .disabled(isFlipping)
                     callButton("Tails", symbol: "★", selected: !callHeads) { callHeads = false }
+                        .disabled(isFlipping)
                 }
+                .opacity(isFlipping ? 0.6 : 1)
 
                 VStack(spacing: 10) {
                     HStack(alignment: .firstTextBaseline) {
@@ -534,11 +590,13 @@ struct CoinFlipView: View {
                     ChipPicker(selected: $chip)
                 }
                 .padding(.top, 22)
+                .disabled(isFlipping)
+                .opacity(isFlipping ? 0.6 : 1)
 
-                GoldButton(title: "Flip for $\(betAmount)") { onFlip(callHeads, chip) }
+                GoldButton(title: isFlipping ? "Flipping…" : "Flip for $\(betAmount)") { onFlip(callHeads, chip) }
                     .padding(.top, 20)
-                    .disabled(cash <= 0)
-                    .opacity(cash <= 0 ? 0.5 : 1)
+                    .disabled(cash <= 0 || isFlipping)
+                    .opacity(cash <= 0 || isFlipping ? 0.5 : 1)
                 Spacer(minLength: 12)
                 HStack {
                     Text("Last flips").font(.system(size: 13)).foregroundStyle(CasinoArt.muted)
@@ -588,7 +646,10 @@ struct BlackjackTableView: View {
     var cash = 0
     var phase: Phase = .betting
     var handLabelSuffix: String? = nil   // e.g. "Hand 1 of 2" while split
-    var dealer: [Card] = [Card(rank: "K", suit: "♥")]
+    /// Always the dealer's *complete* hand, hole card included — index 1 is
+    /// rendered as a `RevealingCardView` so it can flip over in place rather
+    /// than always being a separate face-up array plus a fake back card.
+    var dealer: [Card] = [Card(rank: "K", suit: "♥"), Card(rank: "4", suit: "♠")]
     var dealerHidden = true
     var player: [Card] = [Card(rank: "7", suit: "♣"), Card(rank: "9", suit: "♦"), Card(rank: "4", suit: "♥")]
     var dealerTotal = "10"
@@ -618,9 +679,16 @@ struct BlackjackTableView: View {
                     handLabel("DEALER", total: phase == .betting ? "" : dealerTotal, highlight: false)
                     HStack(spacing: -26) {
                         ForEach(Array(dealer.enumerated()), id: \.offset) { i, c in
-                            CasinoCardFace(rank: c.rank, suit: c.suit).rotationEffect(.degrees(-4))
+                            Group {
+                                if i == 1 {
+                                    RevealingCardView(rank: c.rank, suit: c.suit, isRevealed: !dealerHidden)
+                                } else {
+                                    CasinoCardFace(rank: c.rank, suit: c.suit)
+                                }
+                            }
+                            .rotationEffect(.degrees(-4))
+                            .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
                         }
-                        if dealerHidden { CasinoCardBack().rotationEffect(.degrees(4)) }
                     }
                 }
                 .padding(.top, 14)
@@ -655,17 +723,21 @@ struct BlackjackTableView: View {
                         }
                         Text(bet).font(.system(size: 15, weight: .heavy)).foregroundStyle(CasinoArt.gold)
                     }
+                    .transition(.scale(scale: 0.7).combined(with: .opacity))
 
                     VStack(spacing: 10) {
                         HStack(spacing: -30) {
                             ForEach(Array(player.enumerated()), id: \.offset) { i, c in
                                 let tilt = player.count > 1 ? (Double(i) - Double(player.count - 1) / 2) * 6 : 0
-                                CasinoCardFace(rank: c.rank, suit: c.suit).rotationEffect(.degrees(tilt))
+                                CasinoCardFace(rank: c.rank, suit: c.suit)
+                                    .rotationEffect(.degrees(tilt))
+                                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
                             }
                         }
                         handLabel("YOU" + (handLabelSuffix.map { " · \($0)" } ?? ""), total: playerTotal, highlight: true)
                     }
                     .padding(.top, 14)
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
                 }
 
                 if let resultText {
@@ -763,6 +835,8 @@ struct RouletteView: View {
     var lastNumbers: [Int] = []
     var ball: Int? = nil
     var resultText: String? = nil
+    var isSpinning = false
+    var spinToken = 0
     var onBack: () -> Void = {}
     var onSpin: (_ bets: [RouletteBetKind: Int]) -> Void = { _ in }
 
@@ -777,7 +851,7 @@ struct RouletteView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     CasinoTopBar(title: "Roulette", balance: balance, onBack: onBack)
-                    RouletteWheel(size: 220, ball: ball).padding(.top, 10)
+                    SpinningRouletteWheelView(size: 220, result: ball, spinToken: spinToken).padding(.top, 10)
 
                     if let resultText {
                         Text(resultText)
@@ -804,6 +878,8 @@ struct RouletteView: View {
                     }
 
                     bettingTable.padding(.top, 14)
+                        .disabled(isSpinning)
+                        .opacity(isSpinning ? 0.6 : 1)
 
                     HStack {
                         ChipPicker(selected: $chip, showMax: false, size: 42).frame(width: 190)
@@ -814,6 +890,8 @@ struct RouletteView: View {
                         }
                     }
                     .padding(.top, 14)
+                    .disabled(isSpinning)
+                    .opacity(isSpinning ? 0.6 : 1)
 
                     HStack(spacing: 10) {
                         Button("Clear") { bets.removeAll() }
@@ -821,15 +899,15 @@ struct RouletteView: View {
                             .foregroundStyle(CasinoArt.cream)
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .background(RoundedRectangle(cornerRadius: 12).fill(.black.opacity(0.3)))
-                            .disabled(bets.isEmpty)
+                            .disabled(bets.isEmpty || isSpinning)
                             .opacity(bets.isEmpty ? 0.4 : 1)
-                        GoldButton(title: "Spin", height: 44) {
+                        GoldButton(title: isSpinning ? "Spinning…" : "Spin", height: 44) {
                             let placed = bets
                             bets.removeAll()
                             onSpin(placed)
                         }
-                        .disabled(totalBet <= 0 || totalBet > cash)
-                        .opacity(totalBet <= 0 || totalBet > cash ? 0.5 : 1)
+                        .disabled(totalBet <= 0 || totalBet > cash || isSpinning)
+                        .opacity(totalBet <= 0 || totalBet > cash || isSpinning ? 0.5 : 1)
                     }
                     .padding(.top, 12)
                 }
@@ -843,6 +921,7 @@ struct RouletteView: View {
     private var chipValue: Int { CasinoArt.chipValues[safeIndex: chip] ?? cash }
 
     private func toggle(_ kind: RouletteBetKind) {
+        guard !isSpinning else { return }
         if bets[kind] != nil {
             bets[kind] = nil
         } else {
@@ -938,6 +1017,8 @@ struct HighLowDiceView: View {
     var cash = 0
     var dice = (5, 3)
     var resultText: String? = nil
+    var isRolling = false
+    var rollToken = 0
     var onBack: () -> Void = {}
     var onRoll: (_ higher: Bool, _ chipIndex: Int) -> Void = { _, _ in }
 
@@ -954,8 +1035,8 @@ struct HighLowDiceView: View {
                 ZStack {
                     Ellipse().fill(.black.opacity(0.5)).frame(width: 260, height: 26).blur(radius: 8).offset(y: 92)
                     HStack(spacing: 26) {
-                        DieFace(value: dice.0).rotationEffect(.degrees(-12))
-                        DieFace(value: dice.1).rotationEffect(.degrees(10)).offset(y: -10)
+                        TumblingDieView(finalValue: dice.0, rollToken: rollToken).rotationEffect(.degrees(-12))
+                        TumblingDieView(finalValue: dice.1, rollToken: rollToken).rotationEffect(.degrees(10)).offset(y: -10)
                     }
                 }
                 .frame(height: 250)
@@ -966,6 +1047,7 @@ struct HighLowDiceView: View {
                         .frame(width: 64, height: 64)
                         .background(Circle().fill(.black.opacity(0.4)))
                         .overlay(Circle().strokeBorder(CasinoArt.gold, lineWidth: 3))
+                        .opacity(isRolling ? 0.4 : 1)
                 }
 
                 if let resultText {
@@ -983,8 +1065,11 @@ struct HighLowDiceView: View {
                     .padding(.top, 14).padding(.bottom, 12)
                 HStack(spacing: 12) {
                     pickButton("Higher", icon: "arrow.up", selected: higher) { higher = true }
+                        .disabled(isRolling)
                     pickButton("Lower", icon: "arrow.down", selected: !higher) { higher = false }
+                        .disabled(isRolling)
                 }
+                .opacity(isRolling ? 0.6 : 1)
 
                 VStack(spacing: 10) {
                     HStack(alignment: .firstTextBaseline) {
@@ -995,10 +1080,12 @@ struct HighLowDiceView: View {
                     ChipPicker(selected: $chip)
                 }
                 .padding(.top, 20)
+                .disabled(isRolling)
+                .opacity(isRolling ? 0.6 : 1)
                 Spacer(minLength: 12)
-                GoldButton(title: "Roll for $\(betAmount)") { onRoll(higher, chip) }
-                    .disabled(cash <= 0)
-                    .opacity(cash <= 0 ? 0.5 : 1)
+                GoldButton(title: isRolling ? "Rolling…" : "Roll for $\(betAmount)") { onRoll(higher, chip) }
+                    .disabled(cash <= 0 || isRolling)
+                    .opacity(cash <= 0 || isRolling ? 0.5 : 1)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
