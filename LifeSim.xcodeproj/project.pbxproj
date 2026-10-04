@@ -10,6 +10,7 @@
 		042764148780EDB7812B140A /* FamilyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF2281C177FDA4FF11918D7 /* FamilyView.swift */; };
 		0C133A95F3225139428AEB9D /* Outfit.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBEBD53A5E34A5282F14B679 /* Outfit.swift */; };
 		103AA3AAE0F5FDCDFCE3A27B /* Stats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A49299338383F60CA568A57C /* Stats.swift */; };
+		14D266AD2E7C636A4724BCB8 /* AssetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D8D554555244BE4AB8FADCC /* AssetData.swift */; };
 		150B20E706B7E03E14B6C9DB /* BlackjackModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E129F9C117B82005DB9733F /* BlackjackModels.swift */; };
 		1AE2B246FF197D098A0772DB /* DoctorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73E3DC4D1111914759521099 /* DoctorView.swift */; };
 		1C2C1D233554E451A7AEF3BA /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F08BF4B0A45BCA4473598635 /* GameViewModel.swift */; };
@@ -31,6 +32,7 @@
 		4A706FA6D3272057B676EC6C /* WeaponData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D83236157BCC115DC46FAE /* WeaponData.swift */; };
 		4CAD48B416CA854D474432D5 /* InterviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47B50931C61679879909248 /* InterviewData.swift */; };
 		5087D6412618F86ED0C1C9D8 /* GameOverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA2095FE328DFF72A52D243 /* GameOverView.swift */; };
+		522E68FE3C325C1648D1837E /* AssetShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA4F1F140B5226CA2F2409B /* AssetShopView.swift */; };
 		5581C48A30CD092B739EA224 /* Friend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E33EF9AA39DF2EC37996EEC0 /* Friend.swift */; };
 		562CDB1EDBF645C1A64C6E98 /* JobApplicationOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DEFAF6204EFC1CF0D95D074 /* JobApplicationOutcome.swift */; };
 		5CEC6E8F6807375097BAF0BF /* ClothingShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F69A444E9462F43EB959B677 /* ClothingShopView.swift */; };
@@ -40,6 +42,7 @@
 		6A0CBE04805D8B2C1E9FAB6E /* MigrationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8112D53C5F44450762DF98E1 /* MigrationData.swift */; };
 		705649F38A888B8C021974C8 /* DoctorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FD3A2329ACF91CC73D6AE33 /* DoctorService.swift */; };
 		73240A3AABCB92A6B3A4A326 /* Stock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F121E42E8D5126A71D2A67 /* Stock.swift */; };
+		740169F916EE7680B4775F11 /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414B185CFE388266A0C4844B /* Asset.swift */; };
 		747B66D3D44B388078DB910B /* Activity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA825208807E9B9A0B9663D2 /* Activity.swift */; };
 		750DCFB2CAB3FE36323936F9 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE9CCC7D842C58779D8EA5B /* SoundManager.swift */; };
 		75EBDBAD47139F748B6D8074 /* LifeSimApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498BFF093C120E69B110D613 /* LifeSimApp.swift */; };
@@ -104,6 +107,7 @@
 		2E3A5860410EF28ECC0F3501 /* SaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveManager.swift; sourceTree = "<group>"; };
 		314E4F47907ED17B31F664A5 /* CheckupOutcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckupOutcome.swift; sourceTree = "<group>"; };
 		38288ABAC88A035D57BEF508 /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopView.swift; sourceTree = "<group>"; };
+		414B185CFE388266A0C4844B /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
 		45F121E42E8D5126A71D2A67 /* Stock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stock.swift; sourceTree = "<group>"; };
 		498BFF093C120E69B110D613 /* LifeSimApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeSimApp.swift; sourceTree = "<group>"; };
 		4B021CAC2A7011A87C852FA2 /* EventData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventData.swift; sourceTree = "<group>"; };
@@ -123,11 +127,13 @@
 		73E3DC4D1111914759521099 /* DoctorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoctorView.swift; sourceTree = "<group>"; };
 		76D85EF3919035C3E00339BE /* Job.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Job.swift; sourceTree = "<group>"; };
 		78F873C48EFB76F65BD21612 /* PersonSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonSelection.swift; sourceTree = "<group>"; };
+		7DA4F1F140B5226CA2F2409B /* AssetShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetShopView.swift; sourceTree = "<group>"; };
 		7DD94A2F79CA75B58918F92B /* LegalTrouble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalTrouble.swift; sourceTree = "<group>"; };
 		7E72C831FF36892091044DD2 /* WeaponShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeaponShopView.swift; sourceTree = "<group>"; };
 		807DCA62E9F38259208D3AE0 /* ActivitiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitiesView.swift; sourceTree = "<group>"; };
 		8112D53C5F44450762DF98E1 /* MigrationData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationData.swift; sourceTree = "<group>"; };
 		8BBBEC76BFB6FE0A72A29266 /* SavingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsView.swift; sourceTree = "<group>"; };
+		8D8D554555244BE4AB8FADCC /* AssetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetData.swift; sourceTree = "<group>"; };
 		8E52476CFDA8500249141B19 /* CasinoIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CasinoIntroView.swift; sourceTree = "<group>"; };
 		8E85E543CB1F0D833B1E3AE4 /* CheckupCutsceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckupCutsceneView.swift; sourceTree = "<group>"; };
 		92F57A1DD274D4CAED42DFCA /* MigrationMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationMapView.swift; sourceTree = "<group>"; };
@@ -192,6 +198,7 @@
 			children = (
 				5418A06147AECE762D53415A /* Accessory.swift */,
 				BA825208807E9B9A0B9663D2 /* Activity.swift */,
+				414B185CFE388266A0C4844B /* Asset.swift */,
 				6E129F9C117B82005DB9733F /* BlackjackModels.swift */,
 				D0604CEEB7A19A40A8B1E9AF /* Character.swift */,
 				314E4F47907ED17B31F664A5 /* CheckupOutcome.swift */,
@@ -267,6 +274,7 @@
 			isa = PBXGroup;
 			children = (
 				807DCA62E9F38259208D3AE0 /* ActivitiesView.swift */,
+				7DA4F1F140B5226CA2F2409B /* AssetShopView.swift */,
 				9FD69493512F2F06C8F09C99 /* AvatarView.swift */,
 				E459F7469A8BA90F7A5D5AEC /* BankHubView.swift */,
 				F4861EADF92B426AA477F6F8 /* BlackjackView.swift */,
@@ -306,6 +314,7 @@
 			isa = PBXGroup;
 			children = (
 				C211054F99E197CE039633DE /* AccessoryData.swift */,
+				8D8D554555244BE4AB8FADCC /* AssetData.swift */,
 				D40FDAE12002D18E1023C53F /* CountryData.swift */,
 				4B021CAC2A7011A87C852FA2 /* EventData.swift */,
 				B47B50931C61679879909248 /* InterviewData.swift */,
@@ -397,6 +406,9 @@
 				EE5939653A5FA5C8F47D4889 /* AccessoryData.swift in Sources */,
 				1F5970999F0070B306BB30B9 /* ActivitiesView.swift in Sources */,
 				747B66D3D44B388078DB910B /* Activity.swift in Sources */,
+				740169F916EE7680B4775F11 /* Asset.swift in Sources */,
+				14D266AD2E7C636A4724BCB8 /* AssetData.swift in Sources */,
+				522E68FE3C325C1648D1837E /* AssetShopView.swift in Sources */,
 				F53CF4B29DAEE3CCC006ADE8 /* AvatarView.swift in Sources */,
 				2CDB3E3118BAB213DD7DAD6E /* BankHubView.swift in Sources */,
 				150B20E706B7E03E14B6C9DB /* BlackjackModels.swift in Sources */,

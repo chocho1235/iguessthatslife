@@ -15,6 +15,7 @@ struct Character: Codable {
     var family: [FamilyMember]
     var friends: [Friend] = []
     var partner: Partner? = nil
+    var ownedAssetIDs: Set<String> = []
     var conditions: [ActiveCondition] = []
     var isAlive: Bool = true
     var causeOfDeath: String?

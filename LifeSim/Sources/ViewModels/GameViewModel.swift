@@ -147,6 +147,7 @@ final class GameViewModel: ObservableObject {
 
         handleFriends(&current, log: &log)
         handlePartner(&current, log: &log)
+        handleAssets(&current, log: &log)
         handleChildren(&current, log: &log)
         handleRelationshipEvents(&current, log: &log)
         handleConditions(&current, log: &log)
@@ -2317,6 +2318,47 @@ final class GameViewModel: ObservableObject {
         }
 
         character.partner = partner
+    }
+
+
+    @discardableResult
+    func buyAsset(_ asset: Asset) -> String {
+        guard var current = character else { return "" }
+        guard !current.ownedAssetIDs.contains(asset.id) else { return "You already own a \(asset.name)." }
+        let cost = localized(asset.price, for: current)
+        guard current.cash >= cost else { return "You need $\(cost) to buy a \(asset.name)." }
+        current.cash -= cost
+        current.ownedAssetIDs.insert(asset.id)
+        character = current
+        SoundManager.shared.play(.cash)
+        return "You bought a \(asset.name) for $\(cost)."
+    }
+
+    @discardableResult
+    func sellAsset(_ asset: Asset) -> String {
+        guard var current = character, current.ownedAssetIDs.contains(asset.id) else { return "" }
+        let refund = localized(asset.sellValue, for: current)
+        current.cash += refund
+        current.ownedAssetIDs.remove(asset.id)
+        character = current
+        SoundManager.shared.play(.cash)
+        return "You sold your \(asset.name) for $\(refund)."
+    }
+
+    private func handleAssets(_ character: inout Character, log: inout [LogEntry]) {
+        let owned = character.ownedAssetIDs.compactMap { AssetData.byID[$0] }
+        guard !owned.isEmpty else { return }
+        let upkeep = owned.reduce(0) { $0 + localized($1.yearlyUpkeep, for: character) }
+        let bonus = owned.reduce(0) { $0 + $1.happinessBonus }
+        character.stats.adjust(happiness: min(bonus, 20))
+        if character.cash >= upkeep {
+            character.cash -= upkeep
+            log.append(LogEntry(text: "Upkeep on your possessions cost $\(upkeep) this year.", isAlert: false))
+        } else {
+            character.cash = 0
+            character.stats.adjust(happiness: -8)
+            log.append(LogEntry(text: "You couldn't cover $\(upkeep) in upkeep on your possessions. Money is tight and it weighs on you.", isAlert: true))
+        }
     }
 
     private func handleFriends(_ character: inout Character, log: inout [LogEntry]) {
